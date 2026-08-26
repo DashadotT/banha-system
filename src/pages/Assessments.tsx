@@ -20,6 +20,8 @@ const GROUP_TYPES: GroupType[] = ['Experimental', 'Comparison'];
 export default function Assessments() {
   const { data: rows, loading, error, refetch } = useAsync(() => fetchAnalysisDataset());
   const { data: typeOptions } = useAsync(() => fetchSettingOptions('assessment_type'));
+  const { data: subjectOptions } = useAsync(() => fetchSettingOptions('subject'));
+  const { data: sectionOptions } = useAsync(() => fetchSettingOptions('section'));
 
   const data = useMemo(() => rows?.map((r) => r.assessment) ?? [], [rows]);
   const environmentalByAssessmentId = useMemo(() => {
@@ -42,14 +44,19 @@ export default function Assessments() {
   const [archiveTarget, setArchiveTarget] = useState<Assessment | null>(null);
   const [archiving, setArchiving] = useState(false);
 
-  const subjects = useMemo(
-    () => Array.from(new Set((data ?? []).map((a) => a.subject))).sort(),
-    [data]
-  );
-  const sections = useMemo(
-    () => Array.from(new Set((data ?? []).map((a) => a.section))).sort(),
-    [data]
-  );
+  // Combine subjects from settings and existing data
+  const subjects = useMemo(() => {
+    const fromSettings = (subjectOptions ?? []).map(s => s.value);
+    const fromData = Array.from(new Set((data ?? []).map((a) => a.subject)));
+    return Array.from(new Set([...fromSettings, ...fromData])).sort();
+  }, [subjectOptions, data]);
+
+  // Combine sections from settings and existing data
+  const sections = useMemo(() => {
+    const fromSettings = (sectionOptions ?? []).map(s => s.value);
+    const fromData = Array.from(new Set((data ?? []).map((a) => a.section)));
+    return Array.from(new Set([...fromSettings, ...fromData])).sort();
+  }, [sectionOptions, data]);
 
   const filtered = useMemo(() => {
     const result = (data ?? []).filter((a) => {

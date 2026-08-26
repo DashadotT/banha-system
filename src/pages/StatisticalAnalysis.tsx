@@ -31,6 +31,7 @@ export default function StatisticalAnalysis() {
   const [dateTo, setDateTo] = useState('');
 
   const { data: typeOptions } = useAsync(() => fetchSettingOptions('assessment_type'));
+  const { data: subjectOptions } = useAsync(() => fetchSettingOptions('subject'));
 
   const { data: rows, loading, error, refetch } = useAsync(
     () =>
@@ -42,10 +43,12 @@ export default function StatisticalAnalysis() {
     [subject, assessmentType, dateFrom, dateTo]
   );
 
-  const subjects = useMemo(
-    () => Array.from(new Set((rows ?? []).map((r) => r.assessment.subject))).sort(),
-    [rows]
-  );
+  // Combine subjects from settings and existing data
+  const subjects = useMemo(() => {
+    const fromSettings = (subjectOptions ?? []).map(s => s.value);
+    const fromData = Array.from(new Set((rows ?? []).map((r) => r.assessment.subject)));
+    return Array.from(new Set([...fromSettings, ...fromData])).sort();
+  }, [subjectOptions, rows]);
 
   const pearsonResults = useMemo(() => (rows ? runPearsonCorrelations(rows) : []), [rows]);
   const tTestResults = useMemo(() => (rows ? runTTestsBySubject(rows) : []), [rows]);
