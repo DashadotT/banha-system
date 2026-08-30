@@ -132,3 +132,45 @@ export function RestoreConfirmDialog({
     </Modal>
   );
 }
+
+export function PermanentDeleteConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  itemLabel,
+  loading = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  itemLabel: string;
+  loading?: boolean;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Permanently delete record"
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="danger" size="sm" onClick={onConfirm} loading={loading}>
+            Delete Permanently
+          </Button>
+        </>
+      }
+    >
+      <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5">
+        <p className="text-sm font-medium text-rose-700">This action cannot be undone.</p>
+        <p className="mt-1 text-xs text-rose-600">
+          Permanently deleting <span className="font-medium">{itemLabel}</span> removes it — and any
+          environmental readings or assessment linked to it — from the database entirely. Unlike
+          archiving, there is no way to restore it afterward.
+        </p>
+      </div>
+    </Modal>
+  );
+}

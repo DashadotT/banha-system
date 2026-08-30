@@ -6,9 +6,11 @@ import { Card, CardHeader } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Input } from '../components/common/FormField';
 import { Button } from '../components/common/Button';
+import { Logo } from '../components/layout/Logo';
 import { OptionListManager } from '../components/settings/OptionListManager';
 import { useAuth } from '../context/AuthContext';
 import { updateProfileName } from '../services/authService';
+import { APP_DESCRIPTION, APP_STACK, APP_TAGLINE, APP_VERSION } from '../config/appInfo';
 
 export default function Settings() {
   const { profile, session, setProfile } = useAuth();
@@ -117,6 +119,32 @@ export default function Settings() {
             placeholder="e.g. Quiz"
           />
         </div>
+
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <Logo compact />
+              <div>
+                <p className="text-sm font-semibold text-primary">About BANHA</p>
+                <p className="text-xs text-slate-500">{APP_TAGLINE}</p>
+              </div>
+            </div>
+            <Badge tone="neutral">Version {APP_VERSION}</Badge>
+          </div>
+          <p className="mt-4 text-sm leading-relaxed text-slate-600">{APP_DESCRIPTION}</p>
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Built with
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {APP_STACK.map((tech) => (
+                <Badge key={tech} tone="neutral">
+                  {tech}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </Card>
       </div>
     </AppLayout>
   );

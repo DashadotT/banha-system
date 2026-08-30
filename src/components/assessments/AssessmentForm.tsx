@@ -8,6 +8,7 @@ import { calculateScorePercentage } from '../../utils/calculations';
 import { createAssessment, updateAssessment } from '../../services/assessmentService';
 import { fetchSettingOptions } from '../../services/settingsService';
 import { useAsync } from '../../hooks/useAsync';
+import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { formatDate, toInputDate } from '../../utils/dateTime';
 import type { Assessment, GroupType } from '../../types';
 
@@ -140,6 +141,8 @@ export function AssessmentForm({
     refetchSections();
     refetchTypes();
   }
+
+  useRealtimeRefresh(['settings_options'], refreshAllOptions);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

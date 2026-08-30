@@ -73,6 +73,17 @@ export async function fetchDevices(): Promise<Device[]> {
 /**
  * Archives a recording (soft delete). Confirmation must be handled by the caller/UI.
  */
+/**
+ * Permanently deletes a recording and (via cascade) its environmental
+ * readings and any assessment attached to it. Irreversible — only intended
+ * for use from Archived Records, after the person confirms they understand
+ * this cannot be undone. Prefer archiveRecording for normal use.
+ */
+export async function deleteRecordingPermanently(id: string): Promise<void> {
+  const { error } = await supabase.from('recordings').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function archiveRecording(id: string): Promise<void> {
   const { error } = await supabase
     .from('recordings')

@@ -6,8 +6,11 @@ import { Card, CardHeader } from '../components/common/Card';
 import { RecordingStatusBadge } from '../components/recordings/RecordingStatusBadge';
 import { TrendChart } from '../components/charts/TrendChart';
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States';
+import { EnvValue } from '../components/common/EnvValue';
+import { EnvironmentalStatusInfo } from '../components/common/EnvironmentalStatusInfo';
 import { AssessmentForm } from '../components/assessments/AssessmentForm';
 import { useAsync } from '../hooks/useAsync';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { fetchReadingsForRecording, fetchRecordingById } from '../services/recordingService';
 import { fetchAssessmentByRecordingId } from '../services/assessmentService';
 import { formatDateTime, formatDuration } from '../utils/dateTime';
@@ -25,7 +28,7 @@ export default function RecordingDetails() {
     error: recordingError,
   } = useAsync(() => fetchRecordingById(id as string), [id]);
 
-  const { data: readings, loading: loadingReadings } = useAsync(
+  const { data: readings, loading: loadingReadings, refetch: refetchReadings } = useAsync(
     () => fetchReadingsForRecording(id as string),
     [id]
   );
@@ -34,6 +37,8 @@ export default function RecordingDetails() {
     () => fetchAssessmentByRecordingId(id as string),
     [id, refreshKey]
   );
+
+  useRealtimeRefresh(['environmental_readings'], refetchReadings);
 
   const loading = loadingRecording || loadingReadings || loadingAssessment;
 
@@ -70,7 +75,10 @@ export default function RecordingDetails() {
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">Recording ID: {recording.id}</p>
               </div>
-              <RecordingStatusBadge status={recording.status} />
+              <div className="flex items-center gap-2">
+                <EnvironmentalStatusInfo compact />
+                <RecordingStatusBadge status={recording.status} />
+              </div>
             </div>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
@@ -99,20 +107,20 @@ export default function RecordingDetails() {
               </div>
               <div>
                 <dt className="text-xs text-slate-500">Average CO₂</dt>
-                <dd className="mono-num mt-0.5 text-sm font-medium text-primary">
-                  {avgCo2 !== null ? `${avgCo2} ppm` : '—'}
+                <dd className="mt-0.5 text-sm font-medium text-primary">
+                  <EnvValue metric="co2" value={avgCo2} unit="ppm" decimals={0} />
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-500">Average Temperature</dt>
-                <dd className="mono-num mt-0.5 text-sm font-medium text-primary">
-                  {avgTemp !== null ? `${avgTemp} °C` : '—'}
+                <dd className="mt-0.5 text-sm font-medium text-primary">
+                  <EnvValue metric="temperature" value={avgTemp} unit="°C" />
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-500">Average Noise</dt>
-                <dd className="mono-num mt-0.5 text-sm font-medium text-primary">
-                  {avgNoise !== null ? `${avgNoise} dB` : '—'}
+                <dd className="mt-0.5 text-sm font-medium text-primary">
+                  <EnvValue metric="noise" value={avgNoise} unit="dB" />
                 </dd>
               </div>
             </dl>

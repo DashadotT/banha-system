@@ -13,6 +13,7 @@ import { CorrelationScatter } from '../components/analysis/CorrelationScatter';
 import { GroupMeansBarChart } from '../components/analysis/GroupMeansBarChart';
 import { AnalysisReport } from '../components/analysis/AnalysisReport';
 import { useAsync } from '../hooks/useAsync';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import {
   fetchAnalysisDataset,
   runPearsonCorrelations,
@@ -41,6 +42,8 @@ export default function StatisticalAnalysis() {
       }),
     [subject, assessmentType, dateFrom, dateTo]
   );
+
+  useRealtimeRefresh(['assessments', 'recordings', 'environmental_readings'], refetch);
 
   const subjects = useMemo(
     () => Array.from(new Set((rows ?? []).map((r) => r.assessment.subject))).sort(),
