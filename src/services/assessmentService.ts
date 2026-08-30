@@ -119,6 +119,16 @@ export async function updateAssessment(
 /**
  * Archives an assessment (soft delete).
  */
+/**
+ * Permanently deletes an assessment. Irreversible — only intended for use
+ * from Archived Records, after the person confirms they understand this
+ * cannot be undone. Prefer archiveAssessment for normal use.
+ */
+export async function deleteAssessmentPermanently(id: string): Promise<void> {
+  const { error } = await supabase.from('assessments').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function archiveAssessment(id: string): Promise<void> {
   const { error } = await supabase
     .from('assessments')

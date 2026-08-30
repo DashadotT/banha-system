@@ -9,12 +9,14 @@ import { RecordingStatusBadge } from '../components/recordings/RecordingStatusBa
 import { ArchiveConfirmDialog } from '../components/common/Modal';
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States';
 import { useAsync } from '../hooks/useAsync';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { archiveRecording, fetchRecordings } from '../services/recordingService';
 import { formatDateShort, formatDuration, formatTime } from '../utils/dateTime';
 import type { Recording, RecordingStatus } from '../types';
 
 export default function Recordings() {
   const { data, loading, error, refetch } = useAsync(fetchRecordings);
+  useRealtimeRefresh(['recordings'], refetch);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RecordingStatus | 'all'>('all');
   const [deviceFilter, setDeviceFilter] = useState<string>('all');

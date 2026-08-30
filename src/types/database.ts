@@ -101,6 +101,41 @@ export interface SettingOption {
 }
 
 // ---------------------------------------------------------------------------
+// Activity Log — a running feed of research-data actions (recording
+// start/stop, archive/restore, assessment changes, settings changes,
+// account renames). Populated automatically by database triggers, so it
+// captures both web-app and Node 2 (IoT) originated actions. Page
+// navigation is never logged.
+// ---------------------------------------------------------------------------
+
+export type ActivityAction =
+  | 'recording_started'
+  | 'recording_stopped'
+  | 'recording_archived'
+  | 'recording_restored'
+  | 'recording_deleted'
+  | 'assessment_added'
+  | 'assessment_updated'
+  | 'assessment_archived'
+  | 'assessment_restored'
+  | 'assessment_deleted'
+  | 'setting_added'
+  | 'setting_renamed'
+  | 'setting_archived'
+  | 'setting_restored'
+  | 'profile_renamed';
+
+export interface ActivityLogEntry {
+  id: string;
+  actor_id: string | null;
+  actor_name: string;
+  action: ActivityAction | string;
+  entity_type: string;
+  entity_label: string | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Environmental status thresholds (used across Dashboard / Live Monitoring)
 // ---------------------------------------------------------------------------
 

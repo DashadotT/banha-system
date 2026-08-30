@@ -1,24 +1,36 @@
 import { useMemo, useState } from 'react';
-import { Archive, Eye, RotateCcw } from 'lucide-react';
+import { Archive, Eye, RotateCcw, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card, CardHeader } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Td, Th, TableShell } from '../components/common/Table';
-import { RestoreConfirmDialog } from '../components/common/Modal';
+import { PermanentDeleteConfirmDialog, RestoreConfirmDialog } from '../components/common/Modal';
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States';
 import { useAsync } from '../hooks/useAsync';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import {
+  deleteRecordingPermanently,
   fetchArchivedRecordings,
   restoreRecording,
 } from '../services/recordingService';
-import { fetchArchivedAssessments, restoreAssessment } from '../services/assessmentService';
+import {
+  deleteAssessmentPermanently,
+  fetchArchivedAssessments,
+  restoreAssessment,
+} from '../services/assessmentService';
 import { formatDateShort, formatDateTime } from '../utils/dateTime';
 import type { Assessment, Recording } from '../types';
 
 type ArchivedItem =
   | { kind: 'recording'; record: Recording }
   | { kind: 'assessment'; record: Assessment };
+
+function itemLabel(item: ArchivedItem): string {
+  return item.kind === 'recording'
+    ? `recording ${item.record.id.slice(0, 8)}`
+    : `${item.record.assessment_type} #${item.record.assessment_number}`;
+}
 
 export default function ArchivedRecords() {
   const {
@@ -34,8 +46,14 @@ export default function ArchivedRecords() {
     refetch: refetchAssessments,
   } = useAsync(fetchArchivedAssessments);
 
+  useRealtimeRefresh(['recordings'], refetchRecordings);
+  useRealtimeRefresh(['assessments'], refetchAssessments);
+
   const [restoreTarget, setRestoreTarget] = useState<ArchivedItem | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ArchivedItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const items: ArchivedItem[] = useMemo(() => {
     const recordingItems: ArchivedItem[] = (archivedRecordings ?? []).map((r) => ({
@@ -47,8 +65,8 @@ export default function ArchivedRecords() {
       record: a,
     }));
     return [...recordingItems, ...assessmentItems].sort((a, b) => {
-      const dateA = a.kind === 'recording' ? a.record.archived_at : a.record.archived_at;
-      const dateB = b.kind === 'recording' ? b.record.archived_at : b.record.archived_at;
+      const dateA = a.record.archived_at;
+      const dateB = b.record.archived_at;
       return new Date(dateB ?? 0).getTime() - new Date(dateA ?? 0).getTime();
     });
   }, [archivedRecordings, archivedAssessments]);
@@ -73,6 +91,27 @@ export default function ArchivedRecords() {
     }
   }
 
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      if (deleteTarget.kind === 'recording') {
+        await deleteRecordingPermanently(deleteTarget.record.id);
+        refetchRecordings();
+        refetchAssessments(); // a recording's assessment is cascade-deleted too
+      } else {
+        await deleteAssessmentPermanently(deleteTarget.record.id);
+        refetchAssessments();
+      }
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this record.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <AppLayout title="Archived Records">
       <Card padding={false} className="overflow-visible">
@@ -91,11 +130,17 @@ export default function ArchivedRecords() {
             <EmptyState
               icon={<Archive size={28} />}
               title="No archived records"
-              description="Recordings and assessments you archive will appear here for review or restoration."
+              description="Recordings and assessments you archive will appear here for review, restoration, or permanent deletion."
             />
           </div>
         )}
       </Card>
+
+      {deleteError && (
+        <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {deleteError}
+        </div>
+      )}
 
       {!loading && !error && items.length > 0 && (
         <div className="mt-5">
@@ -149,6 +194,16 @@ export default function ArchivedRecords() {
                           <RotateCcw size={14} />
                           Restore
                         </button>
+                        <button
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeleteTarget(item);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
                       </div>
                     </Td>
                   </tr>
@@ -163,14 +218,16 @@ export default function ArchivedRecords() {
         open={Boolean(restoreTarget)}
         onClose={() => setRestoreTarget(null)}
         onConfirm={handleRestoreConfirm}
-        itemLabel={
-          restoreTarget
-            ? restoreTarget.kind === 'recording'
-              ? `recording ${restoreTarget.record.id.slice(0, 8)}`
-              : `${restoreTarget.record.assessment_type} #${restoreTarget.record.assessment_number}`
-            : ''
-        }
+        itemLabel={restoreTarget ? itemLabel(restoreTarget) : ''}
         loading={restoring}
+      />
+
+      <PermanentDeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        itemLabel={deleteTarget ? itemLabel(deleteTarget) : ''}
+        loading={deleting}
       />
     </AppLayout>
   );

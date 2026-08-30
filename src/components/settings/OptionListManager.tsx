@@ -7,6 +7,7 @@ import { Button } from '../common/Button';
 import { EmptyState, ErrorState, LoadingState } from '../common/States';
 import { ArchiveConfirmDialog } from '../common/Modal';
 import { useAsync } from '../../hooks/useAsync';
+import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import {
   addSettingOption,
   archiveSettingOption,
@@ -34,6 +35,11 @@ export function OptionListManager({
     loading: loadingArchived,
     refetch: refetchArchived,
   } = useAsync(() => fetchArchivedSettingOptions(category));
+
+  useRealtimeRefresh(['settings_options'], () => {
+    refetch();
+    refetchArchived();
+  });
 
   const [value, setValue] = useState('');
   const [adding, setAdding] = useState(false);

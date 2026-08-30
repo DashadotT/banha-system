@@ -6,9 +6,12 @@ import { FilterBar } from '../components/common/FilterBar';
 import { Select } from '../components/common/FormField';
 import { Td, Th, TableShell } from '../components/common/Table';
 import { Badge } from '../components/common/Badge';
+import { EnvValue } from '../components/common/EnvValue';
+import { EnvironmentalStatusInfo } from '../components/common/EnvironmentalStatusInfo';
 import { ArchiveConfirmDialog } from '../components/common/Modal';
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States';
 import { useAsync } from '../hooks/useAsync';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { archiveAssessment } from '../services/assessmentService';
 import { fetchAnalysisDataset } from '../services/analysisService';
 import { fetchSettingOptions } from '../services/settingsService';
@@ -19,6 +22,7 @@ const GROUP_TYPES: GroupType[] = ['Experimental', 'Comparison'];
 
 export default function Assessments() {
   const { data: rows, loading, error, refetch } = useAsync(() => fetchAnalysisDataset());
+  useRealtimeRefresh(['assessments', 'recordings', 'environmental_readings'], refetch);
   const { data: typeOptions } = useAsync(() => fetchSettingOptions('assessment_type'));
 
   const data = useMemo(() => rows?.map((r) => r.assessment) ?? [], [rows]);
@@ -106,6 +110,9 @@ export default function Assessments() {
 
   return (
     <AppLayout title="Assessments">
+      <div className="mb-4 flex justify-end">
+        <EnvironmentalStatusInfo />
+      </div>
       <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search by number or subject…">
         <Select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className="w-auto">
           <option value="all">All subjects</option>
@@ -224,14 +231,14 @@ export default function Assessments() {
                 <Td className="mono-num">#{a.assessment_number}</Td>
                 <Td>{formatDateShort(a.assessment_date)}</Td>
                 <Td className="mono-num font-semibold text-primary">{a.score_percentage}%</Td>
-                <Td className="mono-num text-slate-500">
-                  {environmentalByAssessmentId.get(a.id)?.co2 ?? '—'}
+                <Td>
+                  <EnvValue metric="co2" value={environmentalByAssessmentId.get(a.id)?.co2 ?? null} unit="ppm" decimals={0} />
                 </Td>
-                <Td className="mono-num text-slate-500">
-                  {environmentalByAssessmentId.get(a.id)?.temp ?? '—'}
+                <Td>
+                  <EnvValue metric="temperature" value={environmentalByAssessmentId.get(a.id)?.temp ?? null} unit="°C" />
                 </Td>
-                <Td className="mono-num text-slate-500">
-                  {environmentalByAssessmentId.get(a.id)?.noise ?? '—'}
+                <Td>
+                  <EnvValue metric="noise" value={environmentalByAssessmentId.get(a.id)?.noise ?? null} unit="dB" />
                 </Td>
                 <Td>
                   <div className="flex items-center justify-end gap-1">
