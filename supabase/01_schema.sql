@@ -60,6 +60,27 @@ create extension if not exists "uuid-ossp";
 
 
 -- =============================================================================
+-- SERVER TIME
+--
+-- Used by the Live Monitoring / Current Recording duration timers. The web
+-- app synchronizes once against this authoritative server clock, then
+-- advances the displayed duration using the browser's monotonic
+-- performance.now() timer — so recording duration is never affected by the
+-- viewer's computer clock being wrong, adjusted, or drifting mid-session.
+-- =============================================================================
+
+create or replace function public.get_server_time()
+returns timestamptz
+language sql
+stable
+as $$
+  select now();
+$$;
+
+grant execute on function public.get_server_time() to authenticated;
+
+
+-- =============================================================================
 -- PROFILES
 -- =============================================================================
 

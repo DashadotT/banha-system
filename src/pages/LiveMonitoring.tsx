@@ -209,13 +209,13 @@ export default function LiveMonitoring() {
    */
   const liveDuration =
     recording &&
-    serverNowMs !== null &&
-    performanceStartMs !== null
+      serverNowMs !== null &&
+      performanceStartMs !== null
       ? elapsedSecondsFromServer(
-          recording.started_at,
-          serverNowMs,
-          performanceStartMs
-        )
+        recording.started_at,
+        serverNowMs,
+        performanceStartMs
+      )
       : 0;
 
   return (
@@ -312,14 +312,13 @@ export default function LiveMonitoring() {
           </Card>
 
           <EnvironmentalCards
-            co2={latest?.average_co2 ?? null}
             temperature={
               latest?.average_temperature ?? null
             }
             noise={latest?.average_noise ?? null}
           />
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader
                 title="Temperature Trend"
@@ -337,27 +336,6 @@ export default function LiveMonitoring() {
                   metric="average_temperature"
                   color="#678EC4"
                   unit="°C"
-                />
-              )}
-            </Card>
-
-            <Card>
-              <CardHeader
-                title="CO₂ Trend"
-                subtitle="parts per million (ppm)"
-              />
-
-              {readings.length === 0 ? (
-                <EmptyState
-                  title="Waiting for data"
-                  description="No packets received yet."
-                />
-              ) : (
-                <TrendChart
-                  data={readings}
-                  metric="average_co2"
-                  color="#002858"
-                  unit="ppm"
                 />
               )}
             </Card>
