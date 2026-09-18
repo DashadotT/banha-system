@@ -124,6 +124,7 @@ drop trigger if exists trg_log_profile_update on public.profiles;
 -- =============================================================================
 
 drop function if exists public.handle_new_user();
+drop function if exists public.get_server_time();
 drop function if exists public.set_recording_end_time();
 drop function if exists public.mark_recording_assessed();
 drop function if exists public.log_recording_activity();

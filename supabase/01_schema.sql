@@ -60,6 +60,27 @@ create extension if not exists "uuid-ossp";
 
 
 -- =============================================================================
+-- SERVER TIME
+--
+-- Used by the Live Monitoring / Current Recording duration timers. The web
+-- app synchronizes once against this authoritative server clock, then
+-- advances the displayed duration using the browser's monotonic
+-- performance.now() timer — so recording duration is never affected by the
+-- viewer's computer clock being wrong, adjusted, or drifting mid-session.
+-- =============================================================================
+
+create or replace function public.get_server_time()
+returns timestamptz
+language sql
+stable
+as $$
+  select now();
+$$;
+
+grant execute on function public.get_server_time() to authenticated;
+
+
+-- =============================================================================
 -- PROFILES
 -- =============================================================================
 
@@ -277,11 +298,6 @@ create table if not exists public.environmental_readings (
   packet_number integer not null
     check (
       packet_number >= 1
-    ),
-
-  average_co2 numeric(8, 2) not null
-    check (
-      average_co2 >= 0
     ),
 
   average_temperature numeric(6, 2) not null,
@@ -707,11 +723,6 @@ select
   r.status,
 
   count(e.id) as total_packets,
-
-  round(
-    avg(e.average_co2),
-    2
-  ) as overall_avg_co2,
 
   round(
     avg(e.average_temperature),

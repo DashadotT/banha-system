@@ -20,7 +20,7 @@ export default function Dashboard() {
     loading: activityLoading,
     error: activityError,
     refetch: refetchActivity,
-  } = useAsync(() => fetchRecentActivity(12));
+  } = useAsync(() => fetchRecentActivity(50));
 
   useRealtimeRefresh(['recordings', 'environmental_readings'], refetch);
   useRealtimeRefresh(['activity_log'], refetchActivity);
@@ -80,7 +80,6 @@ export default function Dashboard() {
                 <EnvironmentalStatusInfo compact />
               </div>
               <EnvironmentalCards
-                co2={data.latestReading?.average_co2 ?? null}
                 temperature={data.latestReading?.average_temperature ?? null}
                 noise={data.latestReading?.average_noise ?? null}
               />
@@ -99,18 +98,12 @@ export default function Dashboard() {
                   description="Trend data will appear once a BANHA device begins sending readings."
                 />
               ) : (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
                       Temperature (°C)
                     </p>
                     <TrendChart data={data.trend} metric="average_temperature" color="#678EC4" unit="°C" height={180} />
-                  </div>
-                  <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                      CO₂ (ppm)
-                    </p>
-                    <TrendChart data={data.trend} metric="average_co2" color="#002858" unit="ppm" height={180} />
                   </div>
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">

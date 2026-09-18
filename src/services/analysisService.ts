@@ -6,7 +6,6 @@ import type { Assessment, DateRange, PearsonResult, Recording, TTestResult } fro
 export interface RecordingDatasetRow {
   recording: Recording;
   packetCount: number;
-  avgCo2: number | null;
   avgTemperature: number | null;
   avgNoise: number | null;
 }
@@ -33,14 +32,13 @@ export async function fetchRecordingsDataset(dateRange?: DateRange): Promise<Rec
   const recordingIds = recordings.map((r) => r.id);
   const { data: readings, error: readingsError } = await supabase
     .from('environmental_readings')
-    .select('recording_id, average_co2, average_temperature, average_noise')
+    .select('recording_id, average_temperature, average_noise')
     .in('recording_id', recordingIds);
   if (readingsError) throw readingsError;
 
-  const byRecording = new Map<string, { co2: number[]; temp: number[]; noise: number[] }>();
+  const byRecording = new Map<string, { temp: number[]; noise: number[] }>();
   for (const r of readings ?? []) {
-    const bucket = byRecording.get(r.recording_id) ?? { co2: [], temp: [], noise: [] };
-    bucket.co2.push(r.average_co2);
+    const bucket = byRecording.get(r.recording_id) ?? { temp: [], noise: [] };
     bucket.temp.push(r.average_temperature);
     bucket.noise.push(r.average_noise);
     byRecording.set(r.recording_id, bucket);
@@ -50,8 +48,7 @@ export async function fetchRecordingsDataset(dateRange?: DateRange): Promise<Rec
     const bucket = byRecording.get(recording.id);
     return {
       recording,
-      packetCount: bucket?.co2.length ?? 0,
-      avgCo2: bucket && bucket.co2.length ? round(mean(bucket.co2), 1) : null,
+      packetCount: bucket?.temp.length ?? 0,
       avgTemperature: bucket && bucket.temp.length ? round(mean(bucket.temp), 1) : null,
       avgNoise: bucket && bucket.noise.length ? round(mean(bucket.noise), 1) : null,
     };
@@ -60,7 +57,6 @@ export async function fetchRecordingsDataset(dateRange?: DateRange): Promise<Rec
 
 export interface AnalysisRow {
   assessment: Assessment;
-  avgCo2: number | null;
   avgTemperature: number | null;
   avgNoise: number | null;
 }
@@ -99,17 +95,16 @@ export async function fetchAnalysisDataset(filters: AnalysisFilters = {}): Promi
   const recordingIds = Array.from(new Set(assessments.map((a) => a.recording_id)));
   const { data: readings, error: readingsError } = await supabase
     .from('environmental_readings')
-    .select('recording_id, average_co2, average_temperature, average_noise')
+    .select('recording_id, average_temperature, average_noise')
     .in('recording_id', recordingIds);
   if (readingsError) throw readingsError;
 
   const byRecording = new Map<
     string,
-    { co2: number[]; temp: number[]; noise: number[] }
+    { temp: number[]; noise: number[] }
   >();
   for (const r of readings ?? []) {
-    const bucket = byRecording.get(r.recording_id) ?? { co2: [], temp: [], noise: [] };
-    bucket.co2.push(r.average_co2);
+    const bucket = byRecording.get(r.recording_id) ?? { temp: [], noise: [] };
     bucket.temp.push(r.average_temperature);
     bucket.noise.push(r.average_noise);
     byRecording.set(r.recording_id, bucket);
@@ -119,7 +114,6 @@ export async function fetchAnalysisDataset(filters: AnalysisFilters = {}): Promi
     const bucket = byRecording.get(assessment.recording_id);
     return {
       assessment,
-      avgCo2: bucket && bucket.co2.length ? round(mean(bucket.co2), 1) : null,
       avgTemperature: bucket && bucket.temp.length ? round(mean(bucket.temp), 1) : null,
       avgNoise: bucket && bucket.noise.length ? round(mean(bucket.noise), 1) : null,
     };
@@ -127,21 +121,14 @@ export async function fetchAnalysisDataset(filters: AnalysisFilters = {}): Promi
 }
 
 /**
- * Runs the three Pearson correlations (CO2, Temperature, Noise vs Score %)
+ * Runs the Pearson correlations (Temperature, Noise vs Score %)
  * against the given, already-filtered analysis rows.
  */
 export function runPearsonCorrelations(rows: AnalysisRow[]): PearsonResult[] {
-  const co2Pairs = rows.filter((r) => r.avgCo2 !== null);
   const tempPairs = rows.filter((r) => r.avgTemperature !== null);
   const noisePairs = rows.filter((r) => r.avgNoise !== null);
 
   return [
-    computePearson(
-      'CO₂ concentration',
-      'Score Percentage',
-      co2Pairs.map((r) => r.avgCo2 as number),
-      co2Pairs.map((r) => r.assessment.score_percentage)
-    ),
     computePearson(
       'Temperature',
       'Score Percentage',

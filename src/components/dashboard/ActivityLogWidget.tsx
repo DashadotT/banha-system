@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader } from '../common/Card';
 import { EmptyState, ErrorState, LoadingState } from '../common/States';
-import { timeAgo } from '../../utils/dateTime';
+import { formatTime } from '../../utils/dateTime';
 import type { ActivityLogEntry } from '../../types';
 
 interface ActionMeta {
@@ -71,7 +71,7 @@ export function ActivityLogWidget({
       )}
 
       {!loading && !error && (entries ?? []).length > 0 && (
-        <ul className="divide-y divide-border">
+        <ul className="max-h-80 divide-y divide-border overflow-y-auto pr-1">
           {(entries ?? []).map((entry) => {
             const meta = ACTION_META[entry.action] ?? DEFAULT_META;
             const Icon = meta.icon;
@@ -88,7 +88,7 @@ export function ActivityLogWidget({
                     )}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    {entry.actor_name} · {timeAgo(entry.created_at)}
+                    {entry.actor_name} · {formatTime(entry.created_at)}
                   </p>
                 </div>
               </li>
