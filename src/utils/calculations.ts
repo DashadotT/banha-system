@@ -16,17 +16,9 @@ export function calculateScorePercentage(
 // ---------------------------------------------------------------------------
 // Environmental status thresholds
 // Based on common ASHRAE / WHO classroom guidance:
-//   CO2 (ppm):       Normal < 1000,  Moderate 1000-1500,  Poor > 1500
 //   Temperature (C): Normal 20-26,   Moderate 26-30 or 18-20, Poor otherwise
 //   Noise (dB):      Normal < 55,    Moderate 55-70,       Poor > 70
 // ---------------------------------------------------------------------------
-
-export function getCO2Status(co2: number | null | undefined): EnvironmentalStatus {
-  if (co2 === null || co2 === undefined) return 'Normal';
-  if (co2 < 1000) return 'Normal';
-  if (co2 <= 1500) return 'Moderate';
-  return 'Poor';
-}
 
 export function getTemperatureStatus(temp: number | null | undefined): EnvironmentalStatus {
   if (temp === null || temp === undefined) return 'Normal';
@@ -43,11 +35,10 @@ export function getNoiseStatus(noise: number | null | undefined): EnvironmentalS
 }
 
 export function overallEnvironmentalStatus(
-  co2: number | null | undefined,
   temperature: number | null | undefined,
   noise: number | null | undefined
 ): EnvironmentalStatus {
-  const statuses = [getCO2Status(co2), getTemperatureStatus(temperature), getNoiseStatus(noise)];
+  const statuses = [getTemperatureStatus(temperature), getNoiseStatus(noise)];
   if (statuses.includes('Poor')) return 'Poor';
   if (statuses.includes('Moderate')) return 'Moderate';
   return 'Normal';

@@ -38,7 +38,6 @@ export function AnalysisReport({
       'Class Average Score',
       'Total Possible Score',
       'Score Percentage',
-      'Average CO2 (ppm)',
       'Average Temperature (C)',
       'Average Noise (dB)',
     ];
@@ -55,7 +54,6 @@ export function AnalysisReport({
       r.assessment.class_average_score,
       r.assessment.total_possible_score,
       r.assessment.score_percentage,
-      r.avgCo2,
       r.avgTemperature,
       r.avgNoise,
     ]);
@@ -74,7 +72,6 @@ export function AnalysisReport({
         'Duration (s)',
         'Status',
         'Data Packets',
-        'Average CO2 (ppm)',
         'Average Temperature (C)',
         'Average Noise (dB)',
       ];
@@ -86,7 +83,6 @@ export function AnalysisReport({
         d.recording.duration_seconds ?? '',
         d.recording.status,
         d.packetCount,
-        d.avgCo2,
         d.avgTemperature,
         d.avgNoise,
       ]);

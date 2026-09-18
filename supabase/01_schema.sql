@@ -279,11 +279,6 @@ create table if not exists public.environmental_readings (
       packet_number >= 1
     ),
 
-  average_co2 numeric(8, 2) not null
-    check (
-      average_co2 >= 0
-    ),
-
   average_temperature numeric(6, 2) not null,
 
   average_noise numeric(6, 2) not null
@@ -707,11 +702,6 @@ select
   r.status,
 
   count(e.id) as total_packets,
-
-  round(
-    avg(e.average_co2),
-    2
-  ) as overall_avg_co2,
 
   round(
     avg(e.average_temperature),

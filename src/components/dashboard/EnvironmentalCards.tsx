@@ -1,13 +1,12 @@
 import { Badge, statusToTone } from '../common/Badge';
-import { getCO2Status, getNoiseStatus, getTemperatureStatus } from '../../utils/calculations';
+import { getNoiseStatus, getTemperatureStatus } from '../../utils/calculations';
 
 interface EnvironmentalCardsProps {
-  co2: number | null;
   temperature: number | null;
   noise: number | null;
 }
 
-export function EnvironmentalCards({ co2, temperature, noise }: EnvironmentalCardsProps) {
+export function EnvironmentalCards({ temperature, noise }: EnvironmentalCardsProps) {
   const items = [
     {
       label: 'Temperature',
@@ -15,13 +14,6 @@ export function EnvironmentalCards({ co2, temperature, noise }: EnvironmentalCar
       unit: '°C',
       status: getTemperatureStatus(temperature),
       decimals: 1,
-    },
-    {
-      label: 'CO₂',
-      value: co2,
-      unit: 'ppm',
-      status: getCO2Status(co2),
-      decimals: 0,
     },
     {
       label: 'Noise',
@@ -33,7 +25,7 @@ export function EnvironmentalCards({ co2, temperature, noise }: EnvironmentalCar
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {items.map((item) => (
         <div key={item.label} className="rounded-lg border border-border bg-white p-5 shadow-card">
           <div className="flex items-center justify-between">

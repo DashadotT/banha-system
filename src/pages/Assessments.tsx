@@ -27,9 +27,9 @@ export default function Assessments() {
 
   const data = useMemo(() => rows?.map((r) => r.assessment) ?? [], [rows]);
   const environmentalByAssessmentId = useMemo(() => {
-    const map = new Map<string, { co2: number | null; temp: number | null; noise: number | null }>();
+    const map = new Map<string, { temp: number | null; noise: number | null }>();
     (rows ?? []).forEach((r) => {
-      map.set(r.assessment.id, { co2: r.avgCo2, temp: r.avgTemperature, noise: r.avgNoise });
+      map.set(r.assessment.id, { temp: r.avgTemperature, noise: r.avgNoise });
     });
     return map;
   }, [rows]);
@@ -211,7 +211,6 @@ export default function Assessments() {
               <Th>No.</Th>
               <Th>Date</Th>
               <Th>Score %</Th>
-              <Th>Avg CO₂</Th>
               <Th>Avg Temp</Th>
               <Th>Avg Noise</Th>
               <Th className="text-right">Actions</Th>
@@ -231,9 +230,6 @@ export default function Assessments() {
                 <Td className="mono-num">#{a.assessment_number}</Td>
                 <Td>{formatDateShort(a.assessment_date)}</Td>
                 <Td className="mono-num font-semibold text-primary">{a.score_percentage}%</Td>
-                <Td>
-                  <EnvValue metric="co2" value={environmentalByAssessmentId.get(a.id)?.co2 ?? null} unit="ppm" decimals={0} />
-                </Td>
                 <Td>
                   <EnvValue metric="temperature" value={environmentalByAssessmentId.get(a.id)?.temp ?? null} unit="°C" />
                 </Td>

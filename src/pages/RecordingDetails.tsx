@@ -42,7 +42,6 @@ export default function RecordingDetails() {
 
   const loading = loadingRecording || loadingReadings || loadingAssessment;
 
-  const avgCo2 = readings?.length ? round(mean(readings.map((r) => r.average_co2)), 1) : null;
   const avgTemp = readings?.length
     ? round(mean(readings.map((r) => r.average_temperature)), 1)
     : null;
@@ -106,12 +105,6 @@ export default function RecordingDetails() {
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate-500">Average CO₂</dt>
-                <dd className="mt-0.5 text-sm font-medium text-primary">
-                  <EnvValue metric="co2" value={avgCo2} unit="ppm" decimals={0} />
-                </dd>
-              </div>
-              <div>
                 <dt className="text-xs text-slate-500">Average Temperature</dt>
                 <dd className="mt-0.5 text-sm font-medium text-primary">
                   <EnvValue metric="temperature" value={avgTemp} unit="°C" />
@@ -126,19 +119,11 @@ export default function RecordingDetails() {
             </dl>
           </Card>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader title="Temperature Trend" />
               {readings && readings.length > 0 ? (
                 <TrendChart data={readings} metric="average_temperature" color="#678EC4" unit="°C" />
-              ) : (
-                <EmptyState title="No readings recorded" />
-              )}
-            </Card>
-            <Card>
-              <CardHeader title="CO₂ Trend" />
-              {readings && readings.length > 0 ? (
-                <TrendChart data={readings} metric="average_co2" color="#002858" unit="ppm" />
               ) : (
                 <EmptyState title="No readings recorded" />
               )}

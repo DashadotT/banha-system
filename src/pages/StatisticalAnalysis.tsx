@@ -61,11 +61,6 @@ export default function StatisticalAnalysis() {
         rows.filter((r) => r.avgTemperature !== null).map((r) => r.avgTemperature as number)
       ),
       computeDescriptiveStats(
-        'CO₂',
-        'ppm',
-        rows.filter((r) => r.avgCo2 !== null).map((r) => r.avgCo2 as number)
-      ),
-      computeDescriptiveStats(
         'Noise',
         'dB',
         rows.filter((r) => r.avgNoise !== null).map((r) => r.avgNoise as number)
@@ -182,7 +177,7 @@ export default function StatisticalAnalysis() {
                         </li>
                       </ul>
                       <p>
-                        Temperature, CO₂, and Noise are the per-recording averages already computed from
+                        Temperature and Noise are the per-recording averages already computed from
                         each device's 1-minute environmental packets. Score Percentage comes directly from
                         each assessment record.
                       </p>
@@ -198,7 +193,7 @@ export default function StatisticalAnalysis() {
                     <ExplainerButton title="How Pearson Correlation is calculated">
                       <p>
                         Pearson's r measures the strength and direction of a straight-line relationship
-                        between two variables — here, an environmental variable (CO₂, Temperature, or
+                        between two variables — here, an environmental variable (Temperature or
                         Noise) and Score Percentage.
                       </p>
                       <p>
@@ -259,7 +254,7 @@ export default function StatisticalAnalysis() {
                     <ExplainerButton title="How to read these graphs">
                       <p>
                         <strong>Scatter plots</strong> place one point per assessment record: its
-                        environmental variable (CO₂, Temperature, or Noise) on the x-axis, and its Score
+                        environmental variable (Temperature or Noise) on the x-axis, and its Score
                         Percentage on the y-axis. A downward-sloping cluster suggests a negative
                         relationship; an upward-sloping cluster suggests a positive one. A shapeless cloud
                         suggests little to no linear relationship — this is the visual counterpart to the
@@ -277,7 +272,7 @@ export default function StatisticalAnalysis() {
                       title="Environmental Variables vs. Score Percentage"
                       subtitle="Each point is one assessment record"
                     />
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                       <div>
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
                           Temperature (°C)
@@ -288,18 +283,6 @@ export default function StatisticalAnalysis() {
                             .map((r) => ({ x: r.avgTemperature as number, y: r.assessment.score_percentage }))}
                           xLabel="Temperature (°C)"
                           color="#678EC4"
-                        />
-                      </div>
-                      <div>
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          CO₂ (ppm)
-                        </p>
-                        <CorrelationScatter
-                          data={rows
-                            .filter((r) => r.avgCo2 !== null)
-                            .map((r) => ({ x: r.avgCo2 as number, y: r.assessment.score_percentage }))}
-                          xLabel="CO₂ (ppm)"
-                          color="#002858"
                         />
                       </div>
                       <div>
@@ -338,7 +321,7 @@ export default function StatisticalAnalysis() {
                       <p>
                         <strong>Export Raw Data (CSV)</strong> downloads exactly the filtered
                         assessment-and-environmental dataset used to produce the results above — one row
-                        per assessment, joined with its recording's average CO₂, Temperature, and Noise.
+                        per assessment, joined with its recording's average Temperature and Noise.
                       </p>
                       <p>
                         <strong>Export All Recordings (CSV)</strong> downloads every non-archived

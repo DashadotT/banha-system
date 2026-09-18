@@ -12,7 +12,7 @@ import { formatTime } from '../../utils/dateTime';
 
 interface TrendChartProps {
   data: EnvironmentalReading[];
-  metric: 'average_co2' | 'average_temperature' | 'average_noise';
+  metric: 'average_temperature' | 'average_noise';
   color: string;
   unit: string;
   height?: number;

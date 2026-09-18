@@ -41,7 +41,6 @@ export interface Recording {
   // Joined/derived (populated by service layer, not stored directly)
   device?: Device | null;
   latest_packet_number?: number;
-  avg_co2?: number | null;
   avg_temperature?: number | null;
   avg_noise?: number | null;
   assessment?: Assessment | null;
@@ -51,7 +50,6 @@ export interface EnvironmentalReading {
   id: string;
   recording_id: string;
   packet_number: number;
-  average_co2: number;
   average_temperature: number;
   average_noise: number;
   recorded_at: string;
@@ -142,7 +140,6 @@ export interface ActivityLogEntry {
 export type EnvironmentalStatus = 'Normal' | 'Moderate' | 'Poor';
 
 export interface EnvironmentalSnapshot {
-  co2: number | null;
   temperature: number | null;
   noise: number | null;
   recordedAt: string | null;
