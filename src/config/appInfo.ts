@@ -7,7 +7,7 @@ export const APP_NAME = 'BANHA';
 
 export const APP_TAGLINE = 'Bridging Air, Noise, Heat, and Achievement';
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.0.0';
 
 export const APP_DESCRIPTION =
   'IoT-based classroom environmental monitoring and research data management system, built to support quasi-experimental research on classroom temperature and noise conditions and their relationship to academic performance.';
