@@ -343,7 +343,7 @@ export default function LiveMonitoring() {
             <Card>
               <CardHeader
                 title="Noise Trend"
-                subtitle="decibels (dB)"
+                subtitle="decibels (dBA)"
               />
 
               {readings.length === 0 ? (
@@ -356,7 +356,7 @@ export default function LiveMonitoring() {
                   data={readings}
                   metric="average_noise"
                   color="#DEAE20"
-                  unit="dB"
+                  unit="dBA"
                 />
               )}
             </Card>

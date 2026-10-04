@@ -234,7 +234,7 @@ export default function Assessments() {
                   <EnvValue metric="temperature" value={environmentalByAssessmentId.get(a.id)?.temp ?? null} unit="°C" />
                 </Td>
                 <Td>
-                  <EnvValue metric="noise" value={environmentalByAssessmentId.get(a.id)?.noise ?? null} unit="dB" />
+                  <EnvValue metric="noise" value={environmentalByAssessmentId.get(a.id)?.noise ?? null} unit="dBA" />
                 </Td>
                 <Td>
                   <div className="flex items-center justify-end gap-1">

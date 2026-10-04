@@ -107,9 +107,9 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Noise (dB)
+                      Noise (dBA)
                     </p>
-                    <TrendChart data={data.trend} metric="average_noise" color="#DEAE20" unit="dB" height={180} />
+                    <TrendChart data={data.trend} metric="average_noise" color="#DEAE20" unit="dBA" height={180} />
                   </div>
                 </div>
               )}

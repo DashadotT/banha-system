@@ -39,7 +39,7 @@ export function AnalysisReport({
       'Total Possible Score',
       'Score Percentage',
       'Average Temperature (C)',
-      'Average Noise (dB)',
+      'Average Noise (dBA)',
     ];
     const csvRows = rows.map((r) => [
       r.assessment.recording_id,
@@ -73,7 +73,7 @@ export function AnalysisReport({
         'Status',
         'Data Packets',
         'Average Temperature (C)',
-        'Average Noise (dB)',
+        'Average Noise (dBA)',
       ];
       const csvRows = dataset.map((d) => [
         d.recording.id,

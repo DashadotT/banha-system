@@ -113,7 +113,7 @@ export default function RecordingDetails() {
               <div>
                 <dt className="text-xs text-slate-500">Average Noise</dt>
                 <dd className="mt-0.5 text-sm font-medium text-primary">
-                  <EnvValue metric="noise" value={avgNoise} unit="dB" />
+                  <EnvValue metric="noise" value={avgNoise} unit="dBA" />
                 </dd>
               </div>
             </dl>
@@ -131,7 +131,7 @@ export default function RecordingDetails() {
             <Card>
               <CardHeader title="Noise Trend" />
               {readings && readings.length > 0 ? (
-                <TrendChart data={readings} metric="average_noise" color="#DEAE20" unit="dB" />
+                <TrendChart data={readings} metric="average_noise" color="#DEAE20" unit="dBA" />
               ) : (
                 <EmptyState title="No readings recorded" />
               )}

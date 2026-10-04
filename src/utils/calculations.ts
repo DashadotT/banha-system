@@ -14,23 +14,26 @@ export function calculateScorePercentage(
 }
 
 // ---------------------------------------------------------------------------
-// Environmental status thresholds
-// Based on common ASHRAE / WHO classroom guidance:
-//   Temperature (C): Normal 20-26,   Moderate 26-30 or 18-20, Poor otherwise
-//   Noise (dB):      Normal < 55,    Moderate 55-70,       Poor > 70
+// Environmental status thresholds — as specified by the study:
+//   Temperature (°C):  Normal 20-26,    Moderate 27-29,    Poor > 29
+//   Noise (dBA):       Normal 35-55,    Moderate 56-65,    Poor > 65
+//
+// Readings below the stated "Normal" floor (e.g. a very quiet or cool room)
+// are also treated as Normal, since the study only defines an escalation
+// path on the high side — adjust the lower bounds below if that's not right.
 // ---------------------------------------------------------------------------
 
 export function getTemperatureStatus(temp: number | null | undefined): EnvironmentalStatus {
   if (temp === null || temp === undefined) return 'Normal';
-  if (temp >= 20 && temp <= 26) return 'Normal';
-  if ((temp >= 18 && temp < 20) || (temp > 26 && temp <= 30)) return 'Moderate';
+  if (temp <= 26) return 'Normal';
+  if (temp <= 29) return 'Moderate';
   return 'Poor';
 }
 
 export function getNoiseStatus(noise: number | null | undefined): EnvironmentalStatus {
   if (noise === null || noise === undefined) return 'Normal';
-  if (noise < 55) return 'Normal';
-  if (noise <= 70) return 'Moderate';
+  if (noise <= 55) return 'Normal';
+  if (noise <= 65) return 'Moderate';
   return 'Poor';
 }
 

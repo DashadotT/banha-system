@@ -18,7 +18,7 @@ export function EnvironmentalCards({ temperature, noise }: EnvironmentalCardsPro
     {
       label: 'Noise',
       value: noise,
-      unit: 'dB',
+      unit: 'dBA',
       status: getNoiseStatus(noise),
       decimals: 1,
     },

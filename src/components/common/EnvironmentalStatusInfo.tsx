@@ -68,15 +68,15 @@ export function EnvironmentalStatusInfo({ compact = false }: { compact?: boolean
               <tbody>
                 <tr>
                   <td className="py-1 pr-3"><Badge tone="normal">Normal</Badge></td>
-                  <td className="py-1">Below 55 dB</td>
+                  <td className="py-1">Below 55 dBA</td>
                 </tr>
                 <tr>
                   <td className="py-1 pr-3"><Badge tone="moderate">Moderate</Badge></td>
-                  <td className="py-1">55 – 70 dB</td>
+                  <td className="py-1">55 – 70 dBA</td>
                 </tr>
                 <tr>
                   <td className="py-1 pr-3"><Badge tone="poor">Poor</Badge></td>
-                  <td className="py-1">Above 70 dB</td>
+                  <td className="py-1">Above 70 dBA</td>
                 </tr>
               </tbody>
             </table>

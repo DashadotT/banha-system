@@ -62,7 +62,7 @@ export default function StatisticalAnalysis() {
       ),
       computeDescriptiveStats(
         'Noise',
-        'dB',
+        'dBA',
         rows.filter((r) => r.avgNoise !== null).map((r) => r.avgNoise as number)
       ),
       computeDescriptiveStats(
@@ -287,13 +287,13 @@ export default function StatisticalAnalysis() {
                       </div>
                       <div>
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          Noise (dB)
+                          Noise (dBA)
                         </p>
                         <CorrelationScatter
                           data={rows
                             .filter((r) => r.avgNoise !== null)
                             .map((r) => ({ x: r.avgNoise as number, y: r.assessment.score_percentage }))}
-                          xLabel="Noise (dB)"
+                          xLabel="Noise (dBA)"
                           color="#DEAE20"
                         />
                       </div>
