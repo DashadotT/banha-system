@@ -25,7 +25,7 @@ insert into
   public.devices (id, device_name, node_number, status)
 values
   (
-    '1',
+    '11111111-1111-1111-1111-111111111111',
     'BANHA Node 1 Sensor Device',
     1,
     'online'
