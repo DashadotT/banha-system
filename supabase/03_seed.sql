@@ -10,15 +10,11 @@
 insert into
   public.settings_options (category, value)
 values
-  ('subject', 'Information Management'),
-  ('subject', 'System Integration and Architecture'),
+  ('subject', '	Information Assurance & Security'),
   ('section', 'A'),
   ('section', 'B'),
-  ('section', 'C'),
   ('assessment_type', 'Quiz'),
-  ('assessment_type', 'Examination'),
-  ('assessment_type', 'Activity'),
-  ('assessment_type', 'Exercise') on conflict (category, value) do nothing;
+  ('assessment_type', 'Examination') on conflict (category, value) do nothing;
 
 -- =============================================================================
 -- TEST DEVICE
@@ -29,7 +25,7 @@ insert into
   public.devices (id, device_name, node_number, status)
 values
   (
-    '11111111-1111-1111-1111-111111111111',
+    '1',
     'BANHA Node 1 Sensor Device',
     1,
     'online'

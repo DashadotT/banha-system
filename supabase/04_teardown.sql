@@ -108,6 +108,8 @@ on public.activity_log;
 drop trigger if exists on_auth_user_created on auth.users;
 drop trigger if exists before_recording_stop on public.recordings;
 drop trigger if exists on_assessment_created on public.assessments;
+drop trigger if exists on_assessment_updated on public.assessments;
+drop trigger if exists on_assessment_deleted on public.assessments;
 drop trigger if exists trg_log_recording_insert on public.recordings;
 drop trigger if exists trg_log_recording_update on public.recordings;
 drop trigger if exists trg_log_recording_delete on public.recordings;

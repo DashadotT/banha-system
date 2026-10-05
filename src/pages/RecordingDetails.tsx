@@ -14,7 +14,7 @@ import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { fetchReadingsForRecording, fetchRecordingById } from '../services/recordingService';
 import { fetchAssessmentByRecordingId } from '../services/assessmentService';
 import { formatDateTime, formatDuration } from '../utils/dateTime';
-import { mean, round } from '../utils/calculations';
+import { max, mean, min, round } from '../utils/calculations';
 
 export default function RecordingDetails() {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +46,11 @@ export default function RecordingDetails() {
     ? round(mean(readings.map((r) => r.average_temperature)), 1)
     : null;
   const avgNoise = readings?.length ? round(mean(readings.map((r) => r.average_noise)), 1) : null;
+
+  const peakTemp = readings?.length ? max(readings.map((r) => r.average_temperature)) : null;
+  const lowestTemp = readings?.length ? min(readings.map((r) => r.average_temperature)) : null;
+  const peakNoise = readings?.length ? max(readings.map((r) => r.average_noise)) : null;
+  const lowestNoise = readings?.length ? min(readings.map((r) => r.average_noise)) : null;
 
   return (
     <AppLayout title="Recording Details">
@@ -137,6 +142,41 @@ export default function RecordingDetails() {
               )}
             </Card>
           </div>
+
+          {readings && readings.length > 0 && (
+            <Card>
+              <CardHeader
+                title="Peaks for This Session"
+                subtitle="Highest and lowest 1-minute averages recorded"
+              />
+              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div>
+                  <dt className="text-xs text-slate-500">Highest Temperature</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-primary">
+                    <EnvValue metric="temperature" value={peakTemp} unit="°C" />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500">Lowest Temperature</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-primary">
+                    <EnvValue metric="temperature" value={lowestTemp} unit="°C" />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500">Highest Noise</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-primary">
+                    <EnvValue metric="noise" value={peakNoise} unit="dBA" />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500">Lowest Noise</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-primary">
+                    <EnvValue metric="noise" value={lowestNoise} unit="dBA" />
+                  </dd>
+                </div>
+              </dl>
+            </Card>
+          )}
 
           {assessment && !assessment.is_archived && !isEditingAssessment && (
             <Card>

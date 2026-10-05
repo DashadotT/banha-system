@@ -40,6 +40,8 @@ If you are upgrading a database created *before* CO₂ was dropped from the stud
 
 If you are upgrading a database created *before* the recording duration timer switched to a server-time baseline, run **`supabase/06_server_time.sql`** to add the `get_server_time()` function it depends on. Live Monitoring and the Dashboard's Current Recording panel call this once per active recording to sync against Supabase's clock, then advance the displayed duration locally using the browser's monotonic timer — so it stays accurate even if the viewer's computer clock is wrong.
 
+If you are upgrading a database created *before* recording status synced with its assessment's archive state, run **`supabase/07_sync_recording_status.sql`**. This keeps a recording's status accurate on the Recordings page whenever its assessment is archived, restored, or permanently deleted — not just when one is first added — and backfills any recording whose status is already out of sync.
+
 If you ever need to start over, **`supabase/04_teardown.sql`** drops everything the three files above created (tables, policies, triggers, functions, the view, and the Realtime registrations). It is destructive and permanently deletes all data — re-run `01_schema.sql`, `02_activity_log.sql`, and `03_seed.sql` afterward to rebuild.
 
 ### 3. Configure environment variables
@@ -99,6 +101,9 @@ src/
 ## Key Behaviors
 
 - **Archive by default, delete only when you mean it.** Recordings and assessments use `is_archived` / `archived_at` instead of hard deletes, and are excluded from active lists, Dashboard totals, Pearson correlation, t-tests, and reports the moment they're archived. Records can be restored — or, from **Archived Records** only, permanently deleted with a strongly-worded confirmation, which cascades to any linked environmental readings/assessment.
+- **A recording's status stays in sync with its assessment.** Archiving, restoring, or permanently deleting an assessment automatically flips its recording between "Completed" and "Pending Assessment Details" via a database trigger — so the Recordings and Assessments pages never disagree about the same recording.
+- **Tables scroll instead of growing indefinitely.** Recordings, Assessments, and Archived Records cap at roughly 10 visible rows with a sticky header, scrolling for the rest. Use the **Sort** control on each page (date/status/duration for Recordings; date/section/group/number for Assessments) to find what you need quickly.
+- **The Assessment form warns about unsaved edits** and won't let Enter-key presses in a field silently submit the form — only the explicit Save button does.
 - **Pages update live, not just on refresh.** Dashboard, Recordings, Assessments, Statistical Analysis, Archived Records, Recording Details, and the Settings option lists all subscribe to Supabase Realtime (`src/hooks/useRealtimeRefresh.ts`) and refetch automatically when the underlying data changes — including changes made by Node 2 directly.
 - **Environmental status thresholds are explained in-app.** Every Temperature/Noise value is classified Normal/Moderate/Poor (see `src/utils/calculations.ts` for the exact numbers), and an **Info ("Status guide")** button next to these values opens a plain-language explanation of the thresholds.
 - **Activity Log** on the Dashboard shows a running feed of research-data actions — recording start/stop, archive/restore/delete, assessment changes, settings changes, account renames — populated automatically by database triggers (`supabase/02_activity_log.sql`), so it captures actions from Node 2 as well as the web app. Page navigation is never logged.

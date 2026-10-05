@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Archive, ArrowDownAZ, ArrowUpAZ, ListChecks } from 'lucide-react';
+import { Archive, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { FilterBar } from '../components/common/FilterBar';
 import { Select } from '../components/common/FormField';
+import { SortControl } from '../components/common/SortControl';
 import { Td, Th, TableShell } from '../components/common/Table';
 import { Badge } from '../components/common/Badge';
 import { EnvValue } from '../components/common/EnvValue';
@@ -19,6 +20,8 @@ import { formatDateShort } from '../utils/dateTime';
 import type { Assessment, GroupType } from '../types';
 
 const GROUP_TYPES: GroupType[] = ['Experimental', 'Comparison'];
+
+type SortField = 'date' | 'section' | 'group' | 'number';
 
 export default function Assessments() {
   const { data: rows, loading, error, refetch } = useAsync(() => fetchAnalysisDataset());
@@ -42,7 +45,8 @@ export default function Assessments() {
   const [numberFilter, setNumberFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [sortBy, setSortBy] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [archiveTarget, setArchiveTarget] = useState<Assessment | null>(null);
   const [archiving, setArchiving] = useState(false);
 
@@ -60,7 +64,8 @@ export default function Assessments() {
       const matchesSearch =
         !search ||
         String(a.assessment_number).includes(search.toLowerCase()) ||
-        a.subject.toLowerCase().includes(search.toLowerCase());
+        a.subject.toLowerCase().includes(search.toLowerCase()) ||
+        a.recording_id.toLowerCase().includes(search.toLowerCase());
       const matchesSubject = subjectFilter === 'all' || a.subject === subjectFilter;
       const matchesSection = sectionFilter === 'all' || a.section === sectionFilter;
       const matchesGroup = groupFilter === 'all' || a.group_type === groupFilter;
@@ -79,10 +84,22 @@ export default function Assessments() {
         matchesDateTo
       );
     });
-    return result.sort((a, b) => {
-      const diff = new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime();
-      return sortOrder === 'asc' ? diff : -diff;
+
+    const sorted = [...result].sort((a, b) => {
+      let diff = 0;
+      if (sortBy === 'date') {
+        diff = new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime();
+      } else if (sortBy === 'section') {
+        diff = a.section.localeCompare(b.section);
+      } else if (sortBy === 'group') {
+        diff = a.group_type.localeCompare(b.group_type);
+      } else if (sortBy === 'number') {
+        diff = a.assessment_number - b.assessment_number;
+      }
+      return sortDirection === 'asc' ? diff : -diff;
     });
+
+    return sorted;
   }, [
     data,
     search,
@@ -93,7 +110,8 @@ export default function Assessments() {
     numberFilter,
     dateFrom,
     dateTo,
-    sortOrder,
+    sortBy,
+    sortDirection,
   ]);
 
   async function handleArchiveConfirm() {
@@ -113,7 +131,11 @@ export default function Assessments() {
       <div className="mb-4 flex justify-end">
         <EnvironmentalStatusInfo />
       </div>
-      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search by number or subject…">
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by number, subject, or recording ID…"
+      >
         <Select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className="w-auto">
           <option value="all">All subjects</option>
           {subjects.map((s) => (
@@ -179,14 +201,18 @@ export default function Assessments() {
             className="rounded-md border border-border bg-white px-3 py-2 text-sm text-primary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary"
           />
         </div>
-        <button
-          onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-surface"
-          title={sortOrder === 'desc' ? 'Sort: Latest to Oldest' : 'Sort: Oldest to Latest'}
-        >
-          {sortOrder === 'desc' ? <ArrowDownAZ size={15} /> : <ArrowUpAZ size={15} />}
-          {sortOrder === 'desc' ? 'Latest first' : 'Oldest first'}
-        </button>
+        <SortControl
+          options={[
+            { value: 'date', label: 'Date' },
+            { value: 'section', label: 'Section' },
+            { value: 'group', label: 'Group' },
+            { value: 'number', label: 'No.' },
+          ]}
+          sortBy={sortBy}
+          onSortByChange={(v) => setSortBy(v as SortField)}
+          direction={sortDirection}
+          onDirectionChange={setSortDirection}
+        />
       </FilterBar>
 
       {loading && <LoadingState label="Loading assessments…" />}
@@ -204,6 +230,7 @@ export default function Assessments() {
         <TableShell>
           <thead>
             <tr>
+              <Th>Recording ID</Th>
               <Th>Subject</Th>
               <Th>Section</Th>
               <Th>Group</Th>
@@ -219,6 +246,7 @@ export default function Assessments() {
           <tbody>
             {filtered.map((a) => (
               <tr key={a.id} className="hover:bg-surface/60">
+                <Td className="font-mono text-xs text-slate-500">{a.recording_id.slice(0, 8)}</Td>
                 <Td className="font-medium text-primary">{a.subject}</Td>
                 <Td>{a.section}</Td>
                 <Td>

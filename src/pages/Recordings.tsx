@@ -4,6 +4,7 @@ import { Archive, ClipboardList, Eye } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { FilterBar } from '../components/common/FilterBar';
 import { Select } from '../components/common/FormField';
+import { SortControl } from '../components/common/SortControl';
 import { Td, Th, TableShell } from '../components/common/Table';
 import { RecordingStatusBadge } from '../components/recordings/RecordingStatusBadge';
 import { ArchiveConfirmDialog } from '../components/common/Modal';
@@ -14,36 +15,53 @@ import { archiveRecording, fetchRecordings } from '../services/recordingService'
 import { formatDateShort, formatDuration, formatTime } from '../utils/dateTime';
 import type { Recording, RecordingStatus } from '../types';
 
+type SortField = 'date' | 'status' | 'duration';
+
+const STATUS_ORDER: Record<RecordingStatus, number> = {
+  recording: 0,
+  pending_assessment: 1,
+  completed: 2,
+};
+
 export default function Recordings() {
   const { data, loading, error, refetch } = useAsync(fetchRecordings);
   useRealtimeRefresh(['recordings'], refetch);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RecordingStatus | 'all'>('all');
-  const [deviceFilter, setDeviceFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [archiveTarget, setArchiveTarget] = useState<Recording | null>(null);
   const [archiving, setArchiving] = useState(false);
 
-  const devices = useMemo(() => {
-    const set = new Set((data ?? []).map((r) => r.device?.device_name ?? '').filter(Boolean));
-    return Array.from(set);
-  }, [data]);
-
   const filtered = useMemo(() => {
-    return (data ?? []).filter((r) => {
+    const result = (data ?? []).filter((r) => {
       const matchesSearch =
         !search ||
         r.device?.device_name?.toLowerCase().includes(search.toLowerCase()) ||
         r.id.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
-      const matchesDevice = deviceFilter === 'all' || r.device?.device_name === deviceFilter;
       const recordingDate = r.started_at.slice(0, 10);
       const matchesDateFrom = !dateFrom || recordingDate >= dateFrom;
       const matchesDateTo = !dateTo || recordingDate <= dateTo;
-      return matchesSearch && matchesStatus && matchesDevice && matchesDateFrom && matchesDateTo;
+      return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
     });
-  }, [data, search, statusFilter, deviceFilter, dateFrom, dateTo]);
+
+    const sorted = [...result].sort((a, b) => {
+      let diff = 0;
+      if (sortBy === 'date') {
+        diff = new Date(a.started_at).getTime() - new Date(b.started_at).getTime();
+      } else if (sortBy === 'status') {
+        diff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      } else if (sortBy === 'duration') {
+        diff = (a.duration_seconds ?? 0) - (b.duration_seconds ?? 0);
+      }
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+
+    return sorted;
+  }, [data, search, statusFilter, dateFrom, dateTo, sortBy, sortDirection]);
 
   async function handleArchiveConfirm() {
     if (!archiveTarget) return;
@@ -65,14 +83,6 @@ export default function Recordings() {
           <option value="recording">Recording</option>
           <option value="completed">Completed</option>
           <option value="pending_assessment">Pending Assessment Details</option>
-        </Select>
-        <Select value={deviceFilter} onChange={(e) => setDeviceFilter(e.target.value)} className="w-auto">
-          <option value="all">All devices</option>
-          {devices.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
         </Select>
         <div className="flex items-center gap-1.5">
           <label className="text-xs text-slate-500" htmlFor="recordings-date-from">
@@ -98,6 +108,17 @@ export default function Recordings() {
             className="rounded-md border border-border bg-white px-3 py-2 text-sm text-primary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary"
           />
         </div>
+        <SortControl
+          options={[
+            { value: 'date', label: 'Date & Time' },
+            { value: 'status', label: 'Status' },
+            { value: 'duration', label: 'Duration' },
+          ]}
+          sortBy={sortBy}
+          onSortByChange={(v) => setSortBy(v as SortField)}
+          direction={sortDirection}
+          onDirectionChange={setSortDirection}
+        />
       </FilterBar>
 
       {loading && <LoadingState label="Loading recordings…" />}

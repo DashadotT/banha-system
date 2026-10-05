@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import type { EnvironmentalReading, Recording } from '../types';
 
+export type DashboardDataSource = 'live' | 'recent' | 'none';
+
 export interface DashboardSummary {
   activeRecording: Recording | null;
   totalActiveRecordings: number;
@@ -8,10 +10,17 @@ export interface DashboardSummary {
   pendingAssessmentDetails: number;
   latestReading: EnvironmentalReading | null;
   trend: EnvironmentalReading[];
-  /** True when a recording is active but hasn't received its first packet
-   * yet — latestReading/trend in that case are from the previous recording,
-   * shown as "last known" values rather than going blank. */
-  awaitingFirstReading: boolean;
+  /**
+   * Tells the UI whether the shown values are actively streaming or
+   * historical, so the page can always label them correctly instead of
+   * silently showing old data as if it were current:
+   *   'live'   — an active recording with at least one packet received.
+   *   'recent' — no live data right now (idle, or a new recording still
+   *              waiting for its first packet) — values shown are the
+   *              last known reading from the most recent recording.
+   *   'none'   — nothing has ever been recorded.
+   */
+  dataSource: DashboardDataSource;
 }
 
 /**
@@ -86,7 +95,7 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
 
   let latestReading: EnvironmentalReading | null = null;
   let trend: EnvironmentalReading[] = [];
-  let awaitingFirstReading = false;
+  let dataSource: DashboardDataSource = 'none';
 
   if (activeRecording) {
     const { data: trendData, error: trendErr } = await supabase
@@ -98,19 +107,22 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
     trend = (trendData ?? []) as EnvironmentalReading[];
     latestReading = trend.length ? trend[trend.length - 1] : null;
 
-    // A new recording just started but hasn't sent its first packet yet —
-    // keep showing the previous recording's last known values instead of
-    // going blank, clearly labeled as "last known" in the UI.
-    if (!latestReading) {
+    if (latestReading) {
+      dataSource = 'live';
+    } else {
+      // A new recording just started but hasn't sent its first packet yet —
+      // keep showing the previous recording's last known values instead of
+      // going blank, clearly labeled as "recent" (not live) in the UI.
       const fallback = await fetchLatestKnownTrend(activeRecording.id);
       trend = fallback.trend;
       latestReading = fallback.latestReading;
-      awaitingFirstReading = true;
+      dataSource = latestReading ? 'recent' : 'none';
     }
   } else {
     const fallback = await fetchLatestKnownTrend();
     trend = fallback.trend;
     latestReading = fallback.latestReading;
+    dataSource = latestReading ? 'recent' : 'none';
   }
 
   return {
@@ -120,6 +132,6 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
     pendingAssessmentDetails: pendingCount ?? 0,
     latestReading,
     trend,
-    awaitingFirstReading,
+    dataSource,
   };
 }

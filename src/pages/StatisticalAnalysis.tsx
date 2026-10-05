@@ -11,6 +11,7 @@ import { TTestResultsTable } from '../components/analysis/TTestResultsTable';
 import { DescriptiveStatsTable } from '../components/analysis/DescriptiveStatsTable';
 import { CorrelationScatter } from '../components/analysis/CorrelationScatter';
 import { GroupMeansBarChart } from '../components/analysis/GroupMeansBarChart';
+import { PeakRangeChart } from '../components/analysis/PeakRangeChart';
 import { AnalysisReport } from '../components/analysis/AnalysisReport';
 import { useAsync } from '../hooks/useAsync';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
@@ -265,6 +266,11 @@ export default function StatisticalAnalysis() {
                         and Comparison groups, grouped by subject — the same means used in the T-Test tab,
                         shown side by side for a quick visual comparison.
                       </p>
+                      <p>
+                        <strong>The peak charts</strong> show the highest and lowest 1-minute average
+                        reading recorded during each session — useful for spotting sessions with unusually
+                        extreme spikes or dips that a simple average would smooth over.
+                      </p>
                     </ExplainerButton>
                   </div>
                   <Card>
@@ -306,6 +312,22 @@ export default function StatisticalAnalysis() {
                       subtitle="Grouped by subject"
                     />
                     <GroupMeansBarChart results={tTestResults} />
+                  </Card>
+
+                  <Card>
+                    <CardHeader
+                      title="Temperature Peaks by Session"
+                      subtitle="Highest and lowest 1-minute average per recording"
+                    />
+                    <PeakRangeChart rows={rows} metric="temperature" unit="°C" color="#678EC4" />
+                  </Card>
+
+                  <Card>
+                    <CardHeader
+                      title="Noise Peaks by Session"
+                      subtitle="Highest and lowest 1-minute average per recording"
+                    />
+                    <PeakRangeChart rows={rows} metric="noise" unit="dBA" color="#DEAE20" />
                   </Card>
                 </div>
               )}

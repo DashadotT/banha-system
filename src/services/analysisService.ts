@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { computeIndependentTTest, computePearson } from '../utils/statistics';
-import { mean, round } from '../utils/calculations';
+import { max, mean, min, round } from '../utils/calculations';
 import type { Assessment, DateRange, PearsonResult, Recording, TTestResult } from '../types';
 
 export interface RecordingDatasetRow {
@@ -8,6 +8,10 @@ export interface RecordingDatasetRow {
   packetCount: number;
   avgTemperature: number | null;
   avgNoise: number | null;
+  peakTemperature: number | null;
+  lowestTemperature: number | null;
+  peakNoise: number | null;
+  lowestNoise: number | null;
 }
 
 /**
@@ -46,11 +50,17 @@ export async function fetchRecordingsDataset(dateRange?: DateRange): Promise<Rec
 
   return recordings.map((recording) => {
     const bucket = byRecording.get(recording.id);
+    const temp = bucket?.temp ?? [];
+    const noise = bucket?.noise ?? [];
     return {
       recording,
-      packetCount: bucket?.temp.length ?? 0,
-      avgTemperature: bucket && bucket.temp.length ? round(mean(bucket.temp), 1) : null,
-      avgNoise: bucket && bucket.noise.length ? round(mean(bucket.noise), 1) : null,
+      packetCount: temp.length,
+      avgTemperature: temp.length ? round(mean(temp), 1) : null,
+      avgNoise: noise.length ? round(mean(noise), 1) : null,
+      peakTemperature: temp.length ? round(max(temp) as number, 1) : null,
+      lowestTemperature: temp.length ? round(min(temp) as number, 1) : null,
+      peakNoise: noise.length ? round(max(noise) as number, 1) : null,
+      lowestNoise: noise.length ? round(min(noise) as number, 1) : null,
     };
   });
 }
@@ -59,6 +69,10 @@ export interface AnalysisRow {
   assessment: Assessment;
   avgTemperature: number | null;
   avgNoise: number | null;
+  peakTemperature: number | null;
+  lowestTemperature: number | null;
+  peakNoise: number | null;
+  lowestNoise: number | null;
 }
 
 export interface AnalysisFilters {
@@ -112,10 +126,16 @@ export async function fetchAnalysisDataset(filters: AnalysisFilters = {}): Promi
 
   return assessments.map((assessment) => {
     const bucket = byRecording.get(assessment.recording_id);
+    const temp = bucket?.temp ?? [];
+    const noise = bucket?.noise ?? [];
     return {
       assessment,
-      avgTemperature: bucket && bucket.temp.length ? round(mean(bucket.temp), 1) : null,
-      avgNoise: bucket && bucket.noise.length ? round(mean(bucket.noise), 1) : null,
+      avgTemperature: temp.length ? round(mean(temp), 1) : null,
+      avgNoise: noise.length ? round(mean(noise), 1) : null,
+      peakTemperature: temp.length ? round(max(temp) as number, 1) : null,
+      lowestTemperature: temp.length ? round(min(temp) as number, 1) : null,
+      peakNoise: noise.length ? round(max(noise) as number, 1) : null,
+      lowestNoise: noise.length ? round(min(noise) as number, 1) : null,
     };
   });
 }

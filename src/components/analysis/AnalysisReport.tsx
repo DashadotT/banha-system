@@ -39,7 +39,11 @@ export function AnalysisReport({
       'Total Possible Score',
       'Score Percentage',
       'Average Temperature (C)',
+      'Highest Temperature (C)',
+      'Lowest Temperature (C)',
       'Average Noise (dBA)',
+      'Highest Noise (dBA)',
+      'Lowest Noise (dBA)',
     ];
     const csvRows = rows.map((r) => [
       r.assessment.recording_id,
@@ -55,7 +59,11 @@ export function AnalysisReport({
       r.assessment.total_possible_score,
       r.assessment.score_percentage,
       r.avgTemperature,
+      r.peakTemperature,
+      r.lowestTemperature,
       r.avgNoise,
+      r.peakNoise,
+      r.lowestNoise,
     ]);
     downloadCsv(`banha-raw-data-${new Date().toISOString().slice(0, 10)}`, headers, csvRows);
   }
@@ -73,7 +81,11 @@ export function AnalysisReport({
         'Status',
         'Data Packets',
         'Average Temperature (C)',
+        'Highest Temperature (C)',
+        'Lowest Temperature (C)',
         'Average Noise (dBA)',
+        'Highest Noise (dBA)',
+        'Lowest Noise (dBA)',
       ];
       const csvRows = dataset.map((d) => [
         d.recording.id,
@@ -84,7 +96,11 @@ export function AnalysisReport({
         d.recording.status,
         d.packetCount,
         d.avgTemperature,
+        d.peakTemperature,
+        d.lowestTemperature,
         d.avgNoise,
+        d.peakNoise,
+        d.lowestNoise,
       ]);
       downloadCsv(`banha-all-recordings-${new Date().toISOString().slice(0, 10)}`, headers, csvRows);
     } finally {

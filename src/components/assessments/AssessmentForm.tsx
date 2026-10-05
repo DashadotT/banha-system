@@ -94,12 +94,33 @@ export function AssessmentForm({
 }) {
   const isEditing = Boolean(existingAssessment);
 
-  const [draft, setDraft] = useState<DraftState>(() =>
+  const initialDraft = useState<DraftState>(() =>
     existingAssessment ? draftFromAssessment(existingAssessment) : loadDraft(recordingId)
-  );
+  )[0];
+  const [draft, setDraft] = useState<DraftState>(initialDraft);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Whether the form currently differs from what's actually saved. In edit
+  // mode this compares against the existing record; in create mode, any
+  // non-empty field counts as unsaved progress worth warning about.
+  const isDirty = isEditing
+    ? JSON.stringify(draft) !== JSON.stringify(initialDraft)
+    : Object.values(draft).some((v) => v !== '' && v !== 'Experimental');
+
+  // Warn on an actual tab close/refresh while there are unsaved edits —
+  // this is a real browser-level guard, unlike in-app navigation which
+  // can't be reliably intercepted with this router setup.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const {
     data: subjectOptions,
@@ -219,18 +240,37 @@ export function AssessmentForm({
           title={isEditing ? 'Edit Assessment Details' : 'Add Assessment Details'}
           subtitle="Link performance data to this recording"
         />
-        <button
-          type="button"
-          onClick={refreshAllOptions}
-          disabled={optionsLoading}
-          className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-secondary-700 hover:bg-secondary-50 disabled:opacity-50"
-          title="Refresh Subject / Section / Type options"
-        >
-          <RefreshCw size={13} className={optionsLoading ? 'animate-spin' : ''} />
-          Refresh options
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {isDirty && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+              Unsaved changes
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={refreshAllOptions}
+            disabled={optionsLoading}
+            className="mt-0.5 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-secondary-700 hover:bg-secondary-50 disabled:opacity-50"
+            title="Refresh Subject / Section / Type options"
+          >
+            <RefreshCw size={13} className={optionsLoading ? 'animate-spin' : ''} />
+            Refresh options
+          </button>
+        </div>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          // Pressing Enter inside any field (common while retyping a score
+          // or tabbing through the form) otherwise submits the form
+          // implicitly — which saved edits the researcher never explicitly
+          // confirmed. Only the real Save button should be able to submit.
+          if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'BUTTON') {
+            e.preventDefault();
+          }
+        }}
+        className="space-y-4"
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Subject" required>
             <Select

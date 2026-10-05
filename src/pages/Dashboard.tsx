@@ -1,10 +1,11 @@
-import { ClipboardList, Info, ListChecks, Radio } from 'lucide-react';
+import { ClipboardList, ListChecks, Radio } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { StatCard } from '../components/dashboard/StatCard';
 import { CurrentRecordingPanel } from '../components/dashboard/CurrentRecordingPanel';
 import { EnvironmentalCards } from '../components/dashboard/EnvironmentalCards';
 import { ActivityLogWidget } from '../components/dashboard/ActivityLogWidget';
 import { Card, CardHeader } from '../components/common/Card';
+import { Badge } from '../components/common/Badge';
 import { TrendChart } from '../components/charts/TrendChart';
 import { EnvironmentalStatusInfo } from '../components/common/EnvironmentalStatusInfo';
 import { LoadingState, ErrorState, EmptyState } from '../components/common/States';
@@ -69,14 +70,19 @@ export default function Dashboard() {
             </div>
             <div className="lg:col-span-2">
               <div className="mb-2 flex items-center justify-between">
-                {data.awaitingFirstReading ? (
-                  <div className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                    <Info size={13} />
-                    Last known values — waiting for the first reading from the new recording
-                  </div>
-                ) : (
-                  <div />
+                {data.dataSource === 'live' && (
+                  <Badge tone="normal" dot>
+                    Live reading
+                  </Badge>
                 )}
+                {data.dataSource === 'recent' && (
+                  <Badge tone="neutral">
+                    {data.activeRecording
+                      ? 'Recent — waiting for the first reading from this recording'
+                      : 'Recent — from the last recording'}
+                  </Badge>
+                )}
+                {data.dataSource === 'none' && <div />}
                 <EnvironmentalStatusInfo compact />
               </div>
               <EnvironmentalCards
