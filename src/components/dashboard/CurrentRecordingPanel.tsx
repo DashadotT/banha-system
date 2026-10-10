@@ -152,12 +152,12 @@ export function CurrentRecordingPanel({
       </div>
 
       <dl className="grid grid-cols-2 gap-4 text-sm">
-        {/* Device */}
+        {/* Recording ID */}
         <div>
-          <dt className="text-xs text-slate-500">Device</dt>
+          <dt className="text-xs text-slate-500">Recording ID</dt>
 
           <dd className="mt-0.5 font-medium text-primary">
-            {recording.device?.device_name ?? '—'}
+            {recording.id.slice(0, 8)}
           </dd>
         </div>
 

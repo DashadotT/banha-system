@@ -159,7 +159,7 @@ export default function ArchivedRecords() {
               {items.map((item) => {
                 const isRecording = item.kind === 'recording';
                 const label = isRecording
-                  ? `${item.record.device?.device_name ?? '—'} — ${item.record.id.slice(0, 8)}`
+                  ? `Recording ${item.record.id.slice(0, 8)}`
                   : `${item.record.assessment_type} #${item.record.assessment_number} (${item.record.subject})`;
                 const originalDate = isRecording
                   ? item.record.started_at

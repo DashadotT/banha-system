@@ -22,7 +22,7 @@ export interface RecordingDatasetRow {
 export async function fetchRecordingsDataset(dateRange?: DateRange): Promise<RecordingDatasetRow[]> {
   let query = supabase
     .from('recordings')
-    .select('*, device:devices(*)')
+    .select('*')
     .eq('is_archived', false)
     .order('started_at', { ascending: false });
   if (dateRange?.from) query = query.gte('started_at', dateRange.from);
@@ -91,7 +91,7 @@ export interface AnalysisFilters {
 export async function fetchAnalysisDataset(filters: AnalysisFilters = {}): Promise<AnalysisRow[]> {
   let query = supabase
     .from('assessments')
-    .select('*, recording:recordings!inner(*, device:devices(*))')
+    .select('*, recording:recordings!inner(*)')
     .eq('is_archived', false)
     .eq('recording.is_archived', false);
 

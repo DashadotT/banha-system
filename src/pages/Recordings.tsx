@@ -37,10 +37,7 @@ export default function Recordings() {
 
   const filtered = useMemo(() => {
     const result = (data ?? []).filter((r) => {
-      const matchesSearch =
-        !search ||
-        r.device?.device_name?.toLowerCase().includes(search.toLowerCase()) ||
-        r.id.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !search || r.id.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
       const recordingDate = r.started_at.slice(0, 10);
       const matchesDateFrom = !dateFrom || recordingDate >= dateFrom;
@@ -77,7 +74,7 @@ export default function Recordings() {
 
   return (
     <AppLayout title="Recordings">
-      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search by device or ID…">
+      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search by Recording ID…">
         <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as RecordingStatus | 'all')} className="w-auto">
           <option value="all">All statuses</option>
           <option value="recording">Recording</option>
@@ -137,7 +134,6 @@ export default function Recordings() {
           <thead>
             <tr>
               <Th>Recording ID</Th>
-              <Th>Device</Th>
               <Th>Date</Th>
               <Th>Start</Th>
               <Th>End</Th>
@@ -150,7 +146,6 @@ export default function Recordings() {
             {filtered.map((r) => (
               <tr key={r.id} className="hover:bg-surface/60">
                 <Td className="font-mono text-xs text-slate-500">{r.id.slice(0, 8)}</Td>
-                <Td className="font-medium text-primary">{r.device?.device_name ?? '—'}</Td>
                 <Td>{formatDateShort(r.started_at)}</Td>
                 <Td>{formatTime(r.started_at)}</Td>
                 <Td>{r.ended_at ? formatTime(r.ended_at) : '—'}</Td>

@@ -15,7 +15,7 @@ export interface CreateAssessmentInput {
 }
 
 /**
- * Fetches all non-archived assessments, joined with their recording (and device).
+ * Fetches all non-archived assessments, joined with their recording.
  */
 export async function fetchAssessments(options?: {
   dateFrom?: string;
@@ -25,7 +25,7 @@ export async function fetchAssessments(options?: {
 }): Promise<Assessment[]> {
   let query = supabase
     .from('assessments')
-    .select('*, recording:recordings(*, device:devices(*))')
+    .select('*, recording:recordings(*)')
     .eq('is_archived', false);
   if (options?.dateFrom) query = query.gte('assessment_date', options.dateFrom);
   if (options?.dateTo) query = query.lte('assessment_date', options.dateTo);
@@ -42,7 +42,7 @@ export async function fetchAssessments(options?: {
 export async function fetchAssessmentById(id: string): Promise<Assessment | null> {
   const { data, error } = await supabase
     .from('assessments')
-    .select('*, recording:recordings(*, device:devices(*))')
+    .select('*, recording:recordings(*)')
     .eq('id', id)
     .single();
   if (error) {
@@ -154,7 +154,7 @@ export async function restoreAssessment(id: string): Promise<void> {
 export async function fetchArchivedAssessments(): Promise<Assessment[]> {
   const { data, error } = await supabase
     .from('assessments')
-    .select('*, recording:recordings(*, device:devices(*))')
+    .select('*, recording:recordings(*)')
     .eq('is_archived', true)
     .order('archived_at', { ascending: false });
   if (error) throw error;

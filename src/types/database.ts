@@ -16,21 +16,10 @@ export interface Profile {
   created_at: string;
 }
 
-export type DeviceStatus = 'online' | 'offline' | 'recording';
-
-export interface Device {
-  id: string;
-  device_name: string;
-  node_number: number;
-  status: DeviceStatus;
-  created_at: string;
-}
-
 export type RecordingStatus = 'recording' | 'completed' | 'pending_assessment';
 
 export interface Recording {
   id: string;
-  device_id: string | null;
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
@@ -39,7 +28,6 @@ export interface Recording {
   archived_at: string | null;
   created_at: string;
   // Joined/derived (populated by service layer, not stored directly)
-  device?: Device | null;
   latest_packet_number?: number;
   avg_temperature?: number | null;
   avg_noise?: number | null;

@@ -27,7 +27,6 @@ export function AnalysisReport({
   function handleExportCsv() {
     const headers = [
       'Recording ID',
-      'Device',
       'Recording Date',
       'Subject',
       'Section',
@@ -47,7 +46,6 @@ export function AnalysisReport({
     ];
     const csvRows = rows.map((r) => [
       r.assessment.recording_id,
-      r.assessment.recording?.device?.device_name ?? '',
       formatDateShort(r.assessment.recording?.started_at ?? null),
       r.assessment.subject,
       r.assessment.section,
@@ -74,7 +72,6 @@ export function AnalysisReport({
       const dataset = await fetchRecordingsDataset({ from: dateFrom || null, to: dateTo || null });
       const headers = [
         'Recording ID',
-        'Device',
         'Start',
         'End',
         'Duration (s)',
@@ -89,7 +86,6 @@ export function AnalysisReport({
       ];
       const csvRows = dataset.map((d) => [
         d.recording.id,
-        d.recording.device?.device_name ?? '',
         d.recording.started_at,
         d.recording.ended_at ?? '',
         d.recording.duration_seconds ?? '',

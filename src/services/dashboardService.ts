@@ -65,7 +65,7 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   ] = await Promise.all([
     supabase
       .from('recordings')
-      .select('*, device:devices(*)')
+      .select('*')
       .eq('status', 'recording')
       .eq('is_archived', false)
       .order('started_at', { ascending: false })

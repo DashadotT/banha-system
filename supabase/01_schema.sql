@@ -154,44 +154,15 @@ execute function public.handle_new_user();
 
 
 -- =============================================================================
--- DEVICES
--- =============================================================================
-
-create table if not exists public.devices (
-  id uuid primary key default uuid_generate_v4(),
-
-  device_name text not null,
-
-  node_number integer not null
-    check (node_number >= 1),
-
-  status text not null default 'offline'
-    check (
-      status in (
-        'online',
-        'offline',
-        'recording'
-      )
-    ),
-
-  created_at timestamptz not null default now()
-);
-
-
-create index if not exists idx_devices_node_number
-on public.devices(node_number);
-
-
--- =============================================================================
 -- RECORDINGS
+--
+-- BANHA is a single sensing system (Node 1 + Node 2 together), not multiple
+-- interchangeable devices — so a recording is not tied to any device
+-- identifier. recording_id alone connects a session to its readings.
 -- =============================================================================
 
 create table if not exists public.recordings (
   id uuid primary key default uuid_generate_v4(),
-
-  device_id uuid
-    references public.devices(id)
-    on delete set null,
 
   started_at timestamptz not null default now(),
 
@@ -231,10 +202,6 @@ on public.recordings(
   status,
   is_archived
 );
-
-
-create index if not exists idx_recordings_device
-on public.recordings(device_id);
 
 
 create index if not exists idx_recordings_started_at
@@ -534,9 +501,6 @@ on public.settings_options(
 alter table public.profiles
 enable row level security;
 
-alter table public.devices
-enable row level security;
-
 alter table public.recordings
 enable row level security;
 
@@ -560,9 +524,6 @@ on public.profiles;
 drop policy if exists "Users can update their own profile"
 on public.profiles;
 
-drop policy if exists "Authenticated users can view devices"
-on public.devices;
-
 drop policy if exists "Authenticated users can manage recordings"
 on public.recordings;
 
@@ -574,9 +535,6 @@ on public.assessments;
 
 drop policy if exists "Authenticated users can manage settings options"
 on public.settings_options;
-
-drop policy if exists "IoT can view devices"
-on public.devices;
 
 drop policy if exists "IoT can create recordings"
 on public.recordings;
@@ -618,13 +576,6 @@ with check (
 );
 
 
-create policy "Authenticated users can view devices"
-on public.devices
-for select
-to authenticated
-using (true);
-
-
 create policy "Authenticated users can manage recordings"
 on public.recordings
 for all
@@ -662,13 +613,6 @@ with check (true);
 --
 -- Node 2 uses the Supabase ANON/PUBLISHABLE key.
 -- =============================================================================
-
-create policy "IoT can view devices"
-on public.devices
-for select
-to anon
-using (true);
-
 
 -- START -> Create recording
 
@@ -764,8 +708,6 @@ select
 
   r.id as recording_id,
 
-  r.device_id,
-
   r.started_at,
 
   r.ended_at,
@@ -796,8 +738,6 @@ on
 group by
 
   r.id,
-
-  r.device_id,
 
   r.started_at,
 

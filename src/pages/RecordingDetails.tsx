@@ -75,7 +75,7 @@ export default function RecordingDetails() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold text-primary">
-                  {recording.device?.device_name ?? '—'}
+                  {formatDateTime(recording.started_at)}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">Recording ID: {recording.id}</p>
               </div>

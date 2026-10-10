@@ -179,7 +179,7 @@ export default function StatisticalAnalysis() {
                       </ul>
                       <p>
                         Temperature and Noise are the per-recording averages already computed from
-                        each device's 1-minute environmental packets. Score Percentage comes directly from
+                        each recording's 1-minute environmental packets. Score Percentage comes directly from
                         each assessment record.
                       </p>
                     </ExplainerButton>
@@ -348,7 +348,7 @@ export default function StatisticalAnalysis() {
                       <p>
                         <strong>Export All Recordings (CSV)</strong> downloads every non-archived
                         recording within the selected date range — including recordings that don't yet
-                        have assessment details attached — with device, timing, and environmental averages.
+                        have assessment details attached — with timing and environmental averages.
                       </p>
                     </ExplainerButton>
                   </div>

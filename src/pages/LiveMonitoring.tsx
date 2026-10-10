@@ -247,7 +247,7 @@ export default function LiveMonitoring() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-primary">
-                  {recording.device?.device_name ?? '—'}
+                  BANHA Recording
                 </p>
 
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -296,16 +296,14 @@ export default function LiveMonitoring() {
                 </p>
               </div>
 
-              {/* DEVICE ID */}
+              {/* RECORDING ID */}
               <div>
                 <p className="text-xs text-slate-500">
-                  Device ID
+                  Recording ID
                 </p>
 
                 <p className="mt-0.5 text-sm font-medium text-primary">
-                  {recording.device_id
-                    ? recording.device_id.slice(0, 8)
-                    : '—'}
+                  {recording.id.slice(0, 8)}
                 </p>
               </div>
             </div>

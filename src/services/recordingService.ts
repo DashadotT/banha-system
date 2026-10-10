@@ -3,19 +3,17 @@
 import { supabase } from './supabase';
 
 import type {
-  Device,
   EnvironmentalReading,
   Recording,
 } from '../types';
 
 /**
- * Fetches all non-archived recordings, most recent first,
- * joined with device info.
+ * Fetches all non-archived recordings, most recent first.
  */
 export async function fetchRecordings(): Promise<Recording[]> {
   const { data, error } = await supabase
     .from('recordings')
-    .select('*, device:devices(*)')
+    .select('*')
     .eq('is_archived', false)
     .order('started_at', { ascending: false });
 
@@ -25,15 +23,14 @@ export async function fetchRecordings(): Promise<Recording[]> {
 }
 
 /**
- * Fetches a single recording by id
- * (regardless of archive state), joined with device.
+ * Fetches a single recording by id (regardless of archive state).
  */
 export async function fetchRecordingById(
   id: string
 ): Promise<Recording | null> {
   const { data, error } = await supabase
     .from('recordings')
-    .select('*, device:devices(*)')
+    .select('*')
     .eq('id', id)
     .single();
 
@@ -52,7 +49,7 @@ export async function fetchRecordingById(
 export async function fetchActiveRecording(): Promise<Recording | null> {
   const { data, error } = await supabase
     .from('recordings')
-    .select('*, device:devices(*)')
+    .select('*')
     .eq('status', 'recording')
     .eq('is_archived', false)
     .order('started_at', { ascending: false })
@@ -80,20 +77,6 @@ export async function fetchReadingsForRecording(
   if (error) throw error;
 
   return (data ?? []) as EnvironmentalReading[];
-}
-
-/**
- * Fetches all devices.
- */
-export async function fetchDevices(): Promise<Device[]> {
-  const { data, error } = await supabase
-    .from('devices')
-    .select('*')
-    .order('device_name');
-
-  if (error) throw error;
-
-  return (data ?? []) as Device[];
 }
 
 /**
@@ -157,7 +140,7 @@ export async function restoreRecording(
 export async function fetchArchivedRecordings(): Promise<Recording[]> {
   const { data, error } = await supabase
     .from('recordings')
-    .select('*, device:devices(*)')
+    .select('*')
     .eq('is_archived', true)
     .order('archived_at', { ascending: false });
 

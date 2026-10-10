@@ -3,7 +3,7 @@
 -- =============================================================================
 -- WARNING: THIS IS DESTRUCTIVE. Running this permanently deletes every BANHA
 -- table and all data in them (recordings, environmental readings,
--- assessments, settings options, devices, profiles, activity log). There is
+-- assessments, settings options, profiles, activity log). There is
 -- no undo.
 --
 -- Use this only when you want to completely reset the database before
@@ -64,9 +64,6 @@ on public.profiles;
 drop policy if exists "Users can update their own profile"
 on public.profiles;
 
-drop policy if exists "Authenticated users can view devices"
-on public.devices;
-
 drop policy if exists "Authenticated users can manage recordings"
 on public.recordings;
 
@@ -78,9 +75,6 @@ on public.assessments;
 
 drop policy if exists "Authenticated users can manage settings options"
 on public.settings_options;
-
-drop policy if exists "IoT can view devices"
-on public.devices;
 
 drop policy if exists "IoT can create recordings"
 on public.recordings;
@@ -146,7 +140,6 @@ drop table if exists public.environmental_readings cascade;
 drop table if exists public.assessments cascade;
 drop table if exists public.recordings cascade;
 drop table if exists public.settings_options cascade;
-drop table if exists public.devices cascade;
 drop table if exists public.activity_log cascade;
 drop table if exists public.profiles cascade;
 
