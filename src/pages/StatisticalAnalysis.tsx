@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Activity, BarChart3, FileText, LineChart, SquareStack } from 'lucide-react';
+import { Activity, BarChart3, DoorOpen, FileText, LineChart, SquareStack } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card, CardHeader } from '../components/common/Card';
 import { FormField, Input, Select } from '../components/common/FormField';
@@ -11,7 +11,7 @@ import { TTestResultsTable } from '../components/analysis/TTestResultsTable';
 import { DescriptiveStatsTable } from '../components/analysis/DescriptiveStatsTable';
 import { CorrelationScatter } from '../components/analysis/CorrelationScatter';
 import { GroupMeansBarChart } from '../components/analysis/GroupMeansBarChart';
-import { PeakRangeChart } from '../components/analysis/PeakRangeChart';
+import { ClassroomConditions } from '../components/analysis/ClassroomConditions';
 import { AnalysisReport } from '../components/analysis/AnalysisReport';
 import { useAsync } from '../hooks/useAsync';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
@@ -22,13 +22,15 @@ import {
 } from '../services/analysisService';
 import { fetchSettingOptions } from '../services/settingsService';
 import { computeDescriptiveStats } from '../utils/statistics';
+import type { GroupType } from '../types';
 
-type TabId = 'descriptive' | 'pearson' | 'ttest' | 'graphs' | 'report';
+type TabId = 'descriptive' | 'pearson' | 'ttest' | 'graphs' | 'classroom' | 'report';
 
 export default function StatisticalAnalysis() {
   const [activeTab, setActiveTab] = useState<TabId>('descriptive');
   const [subject, setSubject] = useState('');
   const [assessmentType, setAssessmentType] = useState('');
+  const [groupType, setGroupType] = useState<GroupType | ''>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -39,15 +41,18 @@ export default function StatisticalAnalysis() {
       fetchAnalysisDataset({
         subject: subject || undefined,
         assessmentType: assessmentType || undefined,
+        groupType: groupType || undefined,
+        publishedOnly: true,
         dateRange: { from: dateFrom || null, to: dateTo || null },
       }),
-    [subject, assessmentType, dateFrom, dateTo]
+    [subject, assessmentType, groupType, dateFrom, dateTo]
   );
 
   useRealtimeRefresh(['assessments', 'recordings', 'environmental_readings'], refetch);
 
   const subjects = useMemo(
-    () => Array.from(new Set((rows ?? []).map((r) => r.assessment.subject))).sort(),
+    () =>
+      Array.from(new Set((rows ?? []).map((r) => r.assessment.subject).filter((s): s is string => Boolean(s)))).sort(),
     [rows]
   );
 
@@ -69,7 +74,9 @@ export default function StatisticalAnalysis() {
       computeDescriptiveStats(
         'Score Percentage',
         '%',
-        rows.map((r) => r.assessment.score_percentage)
+        rows
+          .filter((r) => r.assessment.score_percentage !== null)
+          .map((r) => r.assessment.score_percentage as number)
       ),
     ];
   }, [rows]);
@@ -77,14 +84,15 @@ export default function StatisticalAnalysis() {
   const filterSummary = [
     subject ? `Subject: ${subject}` : 'All subjects',
     assessmentType ? `Type: ${assessmentType}` : 'All types',
+    groupType ? `Group: ${groupType}` : 'All groups',
     dateFrom || dateTo ? `Date range: ${dateFrom || '…'} to ${dateTo || '…'}` : 'All dates',
   ].join(' · ');
 
   return (
     <AppLayout title="Statistical Analysis">
       <Card className="mb-6 print:hidden">
-        <CardHeader title="Dataset Filters" subtitle="Analysis uses non-archived records only" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <CardHeader title="Dataset Filters" subtitle="Only assessments added to the Assessments page are analyzed" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <FormField label="Subject">
             <Select value={subject} onChange={(e) => setSubject(e.target.value)}>
               <option value="">All subjects</option>
@@ -103,6 +111,13 @@ export default function StatisticalAnalysis() {
                   {t.value}
                 </option>
               ))}
+            </Select>
+          </FormField>
+          <FormField label="Group">
+            <Select value={groupType} onChange={(e) => setGroupType(e.target.value as GroupType | '')}>
+              <option value="">All</option>
+              <option value="Experimental">Experimental</option>
+              <option value="Comparison">Comparison</option>
             </Select>
           </FormField>
           <FormField label="Date From">
@@ -134,7 +149,7 @@ export default function StatisticalAnalysis() {
             <EmptyState
               icon={<Activity size={28} />}
               title="No data available for this selection"
-              description="Adjust the filters above, or add assessment details to non-archived recordings."
+              description="Adjust the filters above, or add a completed assessment to the Assessments page — pending, incomplete and unpublished assessments are not analyzed."
             />
           ) : (
             <>
@@ -144,6 +159,7 @@ export default function StatisticalAnalysis() {
                   { id: 'pearson', label: 'Pearson Correlation', icon: <Activity size={15} /> },
                   { id: 'ttest', label: 'T-Test', icon: <BarChart3 size={15} /> },
                   { id: 'graphs', label: 'Graphs & Plots', icon: <LineChart size={15} /> },
+                  { id: 'classroom', label: 'Classroom Conditions', icon: <DoorOpen size={15} /> },
                   { id: 'report', label: 'Generate Report', icon: <FileText size={15} /> },
                 ]}
                 active={activeTab}
@@ -266,11 +282,6 @@ export default function StatisticalAnalysis() {
                         and Comparison groups, grouped by subject — the same means used in the T-Test tab,
                         shown side by side for a quick visual comparison.
                       </p>
-                      <p>
-                        <strong>The peak charts</strong> show the highest and lowest 1-minute average
-                        reading recorded during each session — useful for spotting sessions with unusually
-                        extreme spikes or dips that a simple average would smooth over.
-                      </p>
                     </ExplainerButton>
                   </div>
                   <Card>
@@ -286,7 +297,8 @@ export default function StatisticalAnalysis() {
                         <CorrelationScatter
                           data={rows
                             .filter((r) => r.avgTemperature !== null)
-                            .map((r) => ({ x: r.avgTemperature as number, y: r.assessment.score_percentage }))}
+                            .filter((r) => r.assessment.score_percentage !== null)
+                            .map((r) => ({ x: r.avgTemperature as number, y: r.assessment.score_percentage as number }))}
                           xLabel="Temperature (°C)"
                           color="#678EC4"
                         />
@@ -298,7 +310,8 @@ export default function StatisticalAnalysis() {
                         <CorrelationScatter
                           data={rows
                             .filter((r) => r.avgNoise !== null)
-                            .map((r) => ({ x: r.avgNoise as number, y: r.assessment.score_percentage }))}
+                            .filter((r) => r.assessment.score_percentage !== null)
+                            .map((r) => ({ x: r.avgNoise as number, y: r.assessment.score_percentage as number }))}
                           xLabel="Noise (dBA)"
                           color="#DEAE20"
                         />
@@ -314,21 +327,27 @@ export default function StatisticalAnalysis() {
                     <GroupMeansBarChart results={tTestResults} />
                   </Card>
 
-                  <Card>
-                    <CardHeader
-                      title="Temperature Peaks by Session"
-                      subtitle="Highest and lowest 1-minute average per recording"
-                    />
-                    <PeakRangeChart rows={rows} metric="temperature" unit="°C" color="#678EC4" />
-                  </Card>
+                </div>
+              )}
 
-                  <Card>
-                    <CardHeader
-                      title="Noise Peaks by Session"
-                      subtitle="Highest and lowest 1-minute average per recording"
-                    />
-                    <PeakRangeChart rows={rows} metric="noise" unit="dBA" color="#DEAE20" />
-                  </Card>
+              {activeTab === 'classroom' && (
+                <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <ExplainerButton title="How Classroom Conditions are calculated">
+                      <p>
+                        Assessments are grouped by their saved Classroom / Room Type (and Class Schedule). Each
+                        assessment contributes one temperature and one noise value: the average of all readings
+                        from every recording that belongs to it.
+                      </p>
+                      <p>
+                        A classroom's average is the mean of its assessments' values, then compared with the
+                        study's Normal / Moderate / Poor ranges. Classrooms are flagged when at least half of
+                        their assessments fell in the Moderate or Poor range (minimum two assessments).
+                      </p>
+                      <p>The Group and date filters above apply here too.</p>
+                    </ExplainerButton>
+                  </div>
+                  <ClassroomConditions rows={rows} />
                 </div>
               )}
 

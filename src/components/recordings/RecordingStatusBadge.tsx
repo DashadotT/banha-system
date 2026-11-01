@@ -1,10 +1,11 @@
 import { Badge } from '../common/Badge';
 import type { RecordingStatus } from '../../types';
 
-const STATUS_CONFIG: Record<RecordingStatus, { label: string; tone: 'accent' | 'normal' | 'moderate' }> = {
+const STATUS_CONFIG: Record<RecordingStatus, { label: string; tone: 'accent' | 'normal' | 'moderate' | 'poor' }> = {
   recording: { label: 'Recording', tone: 'accent' },
   completed: { label: 'Completed', tone: 'normal' },
   pending_assessment: { label: 'Pending Assessment Details', tone: 'moderate' },
+  incomplete_assessment: { label: 'Incomplete Assessment Details', tone: 'poor' },
 };
 
 export function RecordingStatusBadge({ status }: { status: RecordingStatus }) {

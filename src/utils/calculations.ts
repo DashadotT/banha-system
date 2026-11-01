@@ -66,3 +66,19 @@ export function min(values: number[]): number | null {
   if (values.length === 0) return null;
   return Math.min(...values);
 }
+
+/**
+ * Overall mean temperature / noise from ALL individual readings (not an
+ * average of per-recording averages), so recordings with different numbers
+ * of readings are weighted correctly.
+ */
+export function combinedMeans(readings: { average_temperature: number; average_noise: number }[]): {
+  packets: number;
+  avgTemperature: number | null;
+  avgNoise: number | null;
+} {
+  if (readings.length === 0) return { packets: 0, avgTemperature: null, avgNoise: null };
+  const t = readings.reduce((sum, r) => sum + r.average_temperature, 0) / readings.length;
+  const n = readings.reduce((sum, r) => sum + r.average_noise, 0) / readings.length;
+  return { packets: readings.length, avgTemperature: Math.round(t * 10) / 10, avgNoise: Math.round(n * 10) / 10 };
+}

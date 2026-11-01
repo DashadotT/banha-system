@@ -42,6 +42,12 @@ If you are upgrading a database created *before* the recording duration timer sw
 
 If you are upgrading a database created *before* recording status synced with its assessment's archive state, run **`supabase/07_sync_recording_status.sql`**. This keeps a recording's status accurate on the Recordings page whenever its assessment is archived, restored, or permanently deleted — not just when one is first added — and backfills any recording whose status is already out of sync.
 
+4. **`06_feature_update.sql`** — run last (safe on existing data, safe to re-run). Adds recording groups, recording notes, partial assessment details, Classroom / Class Schedule fields, the `Incomplete Assessment Details` status, and the archive/restore/reset functions. It supersedes `05_sync_recording_status.sql` — do not run 05 after it.
+
+5. **`08_assessment_workflow_update.sql`** — run after 06 (additive, safe to re-run). Adds Assessment Duration Type, completed/final-results flag, and the “Add to Assessments Page” setting. Existing assessments stay on the Assessments page and no existing row, status or timestamp is changed. `07_sample_data.sql` is optional demo data — do not run it on a production database.
+
+6. **`09_grouping_rules_update.sql`** — run after 08 (additive, safe to re-run). Classroom / Class Schedule now belong to each recording (filled from the assessment each recording already had), recordings can only be grouped when Subject, Section, Group, Assessment Type and Assessment Number match, and “Completed” now requires the final results. Nothing is deleted; existing rows only receive values in the new columns.
+
 If you ever need to start over, **`supabase/04_teardown.sql`** drops everything the three files above created (tables, policies, triggers, functions, the view, and the Realtime registrations). It is destructive and permanently deletes all data — re-run `01_schema.sql`, `02_activity_log.sql`, and `03_seed.sql` afterward to rebuild.
 
 ### 3. Configure environment variables

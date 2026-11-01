@@ -115,3 +115,16 @@ export async function restoreSettingOption(id: string): Promise<void> {
     .eq('id', id);
   if (error) throw error;
 }
+
+/**
+ * Permanently deletes an option. Only archived options can be deleted, and
+ * the action cannot be undone. Past assessments keep their saved text.
+ */
+export async function deleteSettingOption(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('settings_options')
+    .delete()
+    .eq('id', id)
+    .eq('is_archived', true);
+  if (error) throw error;
+}

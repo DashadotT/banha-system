@@ -16,7 +16,29 @@ export interface Profile {
   created_at: string;
 }
 
-export type RecordingStatus = 'recording' | 'completed' | 'pending_assessment';
+export type RecordingStatus =
+  | 'recording'
+  | 'completed'
+  | 'pending_assessment'
+  | 'incomplete_assessment';
+
+export interface RecordingAssessmentInfo {
+  id: string;
+  is_finalized: boolean;
+  show_in_assessments: boolean;
+  subject: string | null;
+  section: string | null;
+  group_type: GroupType | null;
+  assessment_type: string | null;
+  assessment_number: number | null;
+}
+
+/** Several recordings (possibly on different days) belonging to one assessment. */
+export interface RecordingGroup {
+  id: string;
+  name: string;
+  created_at: string;
+}
 
 export interface Recording {
   id: string;
@@ -26,7 +48,16 @@ export interface Recording {
   status: RecordingStatus;
   is_archived: boolean;
   archived_at: string | null;
+  archived_with_assessment?: boolean;
+  group_id: string | null;
+  notes: string | null;
+  /** Where this session took place (can differ between recordings of one assessment). */
+  classroom_type: string | null;
+  class_schedule: string | null;
   created_at: string;
+  group?: RecordingGroup | null;
+  /** Assessment (own or group's) attached by the service layer, if any. */
+  assessment_info?: RecordingAssessmentInfo | null;
   // Joined/derived (populated by service layer, not stored directly)
   latest_packet_number?: number;
   avg_temperature?: number | null;
@@ -52,21 +83,32 @@ export type AssessmentType = string;
 
 export interface Assessment {
   id: string;
-  recording_id: string;
-  subject: string;
-  section: string;
-  group_type: GroupType;
-  assessment_type: AssessmentType;
-  assessment_number: number;
+  /** Set for single-recording assessments; null when owned by a recording group. */
+  recording_id: string | null;
+  /** Set when the assessment spans a group of recordings. */
+  group_id: string | null;
+  // Every detail below may be null — assessment details can be saved partially.
+  subject: string | null;
+  section: string | null;
+  group_type: GroupType | null;
+  assessment_type: AssessmentType | null;
+  assessment_number: number | null;
   assessment_date: string;
-  class_average_score: number;
-  total_possible_score: number;
-  score_percentage: number;
+  class_average_score: number | null;
+  total_possible_score: number | null;
+  score_percentage: number | null;
+  classroom_type: string | null;
+  class_schedule: string | null;
+  /** The assessment activity is finished and final results can be entered. */
+  is_finalized: boolean;
+  /** Published on the Assessments page. */
+  show_in_assessments: boolean;
   is_archived: boolean;
   archived_at: string | null;
   created_at: string;
   // Joined/derived
-  recording?: Recording;
+  recording?: Recording | null;
+  group?: RecordingGroup | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +117,12 @@ export interface Assessment {
 // throughout the Assessment form and filters.
 // ---------------------------------------------------------------------------
 
-export type SettingCategory = 'subject' | 'section' | 'assessment_type';
+export type SettingCategory =
+  | 'subject'
+  | 'section'
+  | 'assessment_type'
+  | 'classroom_type'
+  | 'class_schedule';
 
 export interface SettingOption {
   id: string;
@@ -100,15 +147,19 @@ export type ActivityAction =
   | 'recording_archived'
   | 'recording_restored'
   | 'recording_deleted'
+  | 'recording_grouped'
+  | 'recording_ungrouped'
   | 'assessment_added'
   | 'assessment_updated'
   | 'assessment_archived'
   | 'assessment_restored'
   | 'assessment_deleted'
+  | 'assessment_reset'
   | 'setting_added'
   | 'setting_renamed'
   | 'setting_archived'
   | 'setting_restored'
+  | 'setting_deleted'
   | 'profile_renamed';
 
 export interface ActivityLogEntry {

@@ -1,5 +1,7 @@
 import {
   Archive,
+  Eraser,
+  Layers,
   ListChecks,
   Pencil,
   Radio,
@@ -12,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader } from '../common/Card';
 import { EmptyState, ErrorState, LoadingState } from '../common/States';
-import { formatTime } from '../../utils/dateTime';
+import { formatDateShort, formatTime } from '../../utils/dateTime';
 import type { ActivityLogEntry } from '../../types';
 
 interface ActionMeta {
@@ -27,6 +29,10 @@ const ACTION_META: Record<string, ActionMeta> = {
   recording_archived: { label: 'Recording archived', icon: Archive, iconClass: 'text-slate-500 bg-slate-100' },
   recording_restored: { label: 'Recording restored', icon: RotateCcw, iconClass: 'text-emerald-700 bg-emerald-50' },
   recording_deleted: { label: 'Recording permanently deleted', icon: Trash2, iconClass: 'text-rose-700 bg-rose-50' },
+  recording_grouped: { label: 'Recording grouped', icon: Layers, iconClass: 'text-primary bg-primary-50' },
+  recording_ungrouped: { label: 'Recording removed from group', icon: Layers, iconClass: 'text-slate-500 bg-slate-100' },
+  assessment_reset: { label: 'Assessment details reset', icon: Eraser, iconClass: 'text-amber-700 bg-amber-50' },
+  setting_deleted: { label: 'Setting permanently deleted', icon: Trash2, iconClass: 'text-rose-700 bg-rose-50' },
   assessment_added: { label: 'Assessment added', icon: ListChecks, iconClass: 'text-primary bg-primary-50' },
   assessment_updated: { label: 'Assessment updated', icon: Pencil, iconClass: 'text-secondary-700 bg-secondary-50' },
   assessment_archived: { label: 'Assessment archived', icon: Archive, iconClass: 'text-slate-500 bg-slate-100' },
@@ -72,7 +78,9 @@ export function ActivityLogWidget({
 
       {!loading && !error && (entries ?? []).length > 0 && (
         <ul className="max-h-80 divide-y divide-border overflow-y-auto pr-1">
-          {(entries ?? []).map((entry) => {
+          {[...(entries ?? [])]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .map((entry) => {
             const meta = ACTION_META[entry.action] ?? DEFAULT_META;
             const Icon = meta.icon;
             return (
@@ -88,7 +96,8 @@ export function ActivityLogWidget({
                     )}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    {entry.actor_name} · {formatTime(entry.created_at)}
+                    {entry.actor_name} ·{' '}
+                    <span className="font-medium text-slate-500">{formatDateShort(entry.created_at)}</span>, {formatTime(entry.created_at)}
                   </p>
                 </div>
               </li>

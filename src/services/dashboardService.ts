@@ -1,13 +1,20 @@
 import { supabase } from './supabase';
-import type { EnvironmentalReading, Recording } from '../types';
+import { deriveUnits } from '../utils/assessmentUnits';
+import type { Assessment, EnvironmentalReading, Recording } from '../types';
 
 export type DashboardDataSource = 'live' | 'recent' | 'none';
 
 export interface DashboardSummary {
   activeRecording: Recording | null;
   totalActiveRecordings: number;
-  totalCompletedAssessments: number;
+  /** Assessment groups (each group counts once, however many recordings it holds). */
+  groupedAssessments: number;
+  groupsOngoing: number;
+  groupsCompleted: number;
+  /** Assessments (single recordings or groups) by completeness of their details. */
   pendingAssessmentDetails: number;
+  incompleteAssessments: number;
+  completedAssessments: number;
   latestReading: EnvironmentalReading | null;
   trend: EnvironmentalReading[];
   /**
@@ -60,8 +67,8 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   const [
     { data: activeRecordings, error: activeErr },
     { count: activeCount, error: activeCountErr },
-    { count: completedCount, error: completedErr },
-    { count: pendingCount, error: pendingErr },
+    { data: unitRecordings, error: unitRecordingsErr },
+    { data: unitAssessments, error: unitAssessmentsErr },
   ] = await Promise.all([
     supabase
       .from('recordings')
@@ -76,20 +83,22 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
       .eq('status', 'recording')
       .eq('is_archived', false),
     supabase
-      .from('assessments')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_archived', false),
-    supabase
       .from('recordings')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending_assessment')
-      .eq('is_archived', false),
+      .select('*, group:recording_groups(id, name, created_at)')
+      .eq('is_archived', false)
+      .neq('status', 'recording'),
+    supabase.from('assessments').select('*').eq('is_archived', false),
   ]);
 
   if (activeErr) throw activeErr;
   if (activeCountErr) throw activeCountErr;
-  if (completedErr) throw completedErr;
-  if (pendingErr) throw pendingErr;
+  if (unitRecordingsErr) throw unitRecordingsErr;
+  if (unitAssessmentsErr) throw unitAssessmentsErr;
+
+  // Completeness comes from the assessment details themselves — never from
+  // whether an assessment was added to the Assessments page.
+  const units = deriveUnits((unitRecordings ?? []) as Recording[], (unitAssessments ?? []) as Assessment[]);
+  const groupUnits = units.filter((u) => u.group);
 
   const activeRecording = (activeRecordings?.[0] as Recording | undefined) ?? null;
 
@@ -128,8 +137,12 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   return {
     activeRecording,
     totalActiveRecordings: activeCount ?? 0,
-    totalCompletedAssessments: completedCount ?? 0,
-    pendingAssessmentDetails: pendingCount ?? 0,
+    groupedAssessments: groupUnits.length,
+    groupsOngoing: groupUnits.filter((u) => u.progress === 'ongoing').length,
+    groupsCompleted: groupUnits.filter((u) => u.progress === 'completed').length,
+    pendingAssessmentDetails: units.filter((u) => u.state === 'pending').length,
+    incompleteAssessments: units.filter((u) => u.state === 'incomplete').length,
+    completedAssessments: units.filter((u) => u.state === 'completed').length,
     latestReading,
     trend,
     dataSource,
