@@ -598,12 +598,11 @@ export function AssessmentForm({
               </p>
             )}
 
-            <SectionTitle>Assessments page</SectionTitle>
-            <FormField label="Add to Assessments Page"
+            <FormField label="Add to Assessments"
               hint="Needs every detail and the final results. Separate from completion — you can change it later.">
               <Select value={draft.addToAssessments} onChange={(e) => update('addToAssessments', e.target.value as 'yes' | 'no')}>
                 <option value="no">No — keep in Recordings only</option>
-                <option value="yes">Yes — show on the Assessments page</option>
+                <option value="yes">Yes — add to Assessments</option>
               </Select>
             </FormField>
           </>

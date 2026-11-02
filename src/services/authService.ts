@@ -16,6 +16,28 @@ export async function signIn({ email, password }: LoginCredentials) {
 }
 
 /**
+ * Asks Supabase to email a password-recovery link. Supabase answers the same
+ * way whether or not the address belongs to an account, so callers must show
+ * neutral wording. Only existing Auth users can ever receive a link — this
+ * never creates an account.
+ */
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Sets a new password for the account of the current (recovery) session.
+ * Only the Auth password changes — no profile or application data is touched.
+ */
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+/**
  * Signs the current user out.
  */
 export async function signOut() {

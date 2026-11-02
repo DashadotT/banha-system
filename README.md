@@ -125,3 +125,26 @@ src/
 
 - The RLS policies in `01_schema.sql` currently allow any authenticated user full read/write access to research data — tighten these (e.g. restrict assessment/recording writes to `administrator` role) before deploying to production.
 - Node 2 (the ESP32 IoT gateway) writes `recordings` and `environmental_readings` rows directly using the Supabase **anon/publishable key**, via the `"IoT can …"` policies in `01_schema.sql` — not the service role key. This keeps the anon key scoped to only what Node 2 needs (create/view/update recordings, insert/view readings, view devices) rather than granting it full database access. Review these policies before going live, and make sure the seeded test device ID in `03_seed.sql` matches what's configured on Node 2.
+
+## Password recovery (Forgot Password)
+
+Researchers recover access from **Login → Forgot Password?** (`/forgot-password`). The emailed link opens `/reset-password`,
+where a new password (minimum 12 characters) is set with Supabase `updateUser()`; the researcher is then signed out and sent
+to the Login page. No database tables, policies or profiles are touched, and no accounts are created.
+
+Supabase Dashboard setup:
+
+1. **Authentication → URL Configuration**
+   - Site URL: your production URL, e.g. `https://your-app.vercel.app`
+   - Redirect URLs (add each one that you use):
+     - `https://your-app.vercel.app/reset-password`
+     - `http://localhost:5173/reset-password`
+     - for Vercel preview deployments (optional): `https://*-your-team.vercel.app/reset-password`
+2. **Authentication → Email Templates → Reset Password**: keep the default link `{{ .ConfirmationURL }}` (it already redirects to the
+   `redirectTo` above).
+3. **Project Settings → Authentication → SMTP Settings**: configure a custom SMTP provider. Supabase's built-in email service is
+   rate-limited and only meant for testing, so recovery emails may be delayed or not delivered to non-team addresses.
+4. (Optional) **Authentication → Providers → Email**: keep *Enable sign ups* off — recovery never creates users.
+
+No new environment variables are needed (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` only; never put the service-role key
+in the frontend).

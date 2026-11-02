@@ -306,7 +306,7 @@ export default function Assessments() {
               title="No assessments found"
               description={
                 all.length === 0
-                  ? 'Set “Add to Assessments Page” to Yes on a completed assessment in Recordings to list it here.'
+                  ? 'Set “Add to Assessments” to Yes on a completed assessment in Recordings to list it here.'
                   : 'No assessments match the current filters.'
               }
             />

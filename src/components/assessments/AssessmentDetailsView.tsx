@@ -71,7 +71,7 @@ export function AssessmentFieldsGrid({
       <Field label="Class Schedule" value={schedules.join(', ')} />
       <Field label="Assessment Group" value={groupName} />
       <Field label="Assessment Progress" value={a ? <ProgressBadge finalized={a.is_finalized} /> : ''} />
-      <Field label="Assessments Page" value={a ? <PublicationMark published={a.show_in_assessments} /> : ''} />
+      <Field label="Assessments" value={a ? <PublicationMark published={a.show_in_assessments} /> : ''} />
       <Field label="Final Class Average" value={a?.class_average_score != null ? String(a.class_average_score) : ''} />
       <Field label="Total Possible Score" value={a?.total_possible_score != null ? String(a.total_possible_score) : ''} />
       <Field

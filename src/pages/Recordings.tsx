@@ -225,7 +225,7 @@ export default function Recordings() {
         </Select>
         <Select value={publishFilter} onChange={(e) => setPublishFilter(e.target.value as 'all' | 'added' | 'not_added')}
           className="w-auto" aria-label="Assessments page status">
-          <option value="all">Assessments page: all</option>
+          <option value="all">Assessments: all</option>
           <option value="added">✓ Ready</option>
           <option value="not_added">✗ Not Added</option>
         </Select>
@@ -309,7 +309,7 @@ export default function Recordings() {
                 <Th>End</Th>
                 <Th>Duration</Th>
                 <Th>Status</Th>
-                <Th>Assessments Page</Th>
+                <Th>Assessments</Th>
                 <Th className="text-right">Actions</Th>
               </tr>
             </thead>

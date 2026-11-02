@@ -5,11 +5,31 @@ import { supabase } from '../services/supabase';
 import { getProfile, signIn, signOut } from '../services/authService';
 import type { LoginCredentials } from '../services/authService';
 import type { Profile } from '../types';
+import { RECOVERY_FLAG_KEY } from '../utils/passwordRecovery';
+
+function readRecoveryFlag(): boolean {
+  try {
+    return window.localStorage.getItem(RECOVERY_FLAG_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeRecoveryFlag(on: boolean) {
+  try {
+    if (on) window.localStorage.setItem(RECOVERY_FLAG_KEY, '1');
+    else window.localStorage.removeItem(RECOVERY_FLAG_KEY);
+  } catch {
+    // storage unavailable — recovery state then only lasts for this page load
+  }
+}
 
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
+  /** True while the session comes from a password-recovery link (not a real sign-in). */
+  isRecovery: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -23,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecovery, setIsRecovery] = useState<boolean>(readRecoveryFlag);
 
   useEffect(() => {
     let mounted = true;
@@ -41,8 +62,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) setIsLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
+      if (event === 'PASSWORD_RECOVERY') {
+        writeRecoveryFlag(true);
+        setIsRecovery(true);
+      } else if (event === 'SIGNED_OUT') {
+        writeRecoveryFlag(false);
+        setIsRecovery(false);
+      }
       setSession(newSession);
       if (newSession?.user) {
         try {
@@ -64,12 +92,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     await signIn(credentials);
+    // A genuine sign-in replaces any leftover recovery session.
+    writeRecoveryFlag(false);
+    setIsRecovery(false);
   }, []);
 
   const logout = useCallback(async () => {
-    await signOut();
-    setProfile(null);
-    setSession(null);
+    try {
+      await signOut();
+    } finally {
+      writeRecoveryFlag(false);
+      setIsRecovery(false);
+      setProfile(null);
+      setSession(null);
+    }
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -77,12 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       isLoading,
-      isAuthenticated: Boolean(session),
+      isRecovery,
+      // A recovery link only proves access to the email; the researcher must
+      // set a new password (or sign in normally) before using BANHA.
+      isAuthenticated: Boolean(session) && !isRecovery,
       login,
       logout,
       setProfile,
     }),
-    [session, profile, isLoading, login, logout]
+    [session, profile, isLoading, isRecovery, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

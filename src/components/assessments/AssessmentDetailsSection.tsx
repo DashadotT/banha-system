@@ -101,7 +101,7 @@ export function AssessmentDetailsSection({
         <div className="flex shrink-0 flex-wrap items-center gap-1">
           {canPublish && (
             <Button variant="ghost" size="sm" onClick={() => { setError(null); setConfirmPublish(!assessment?.show_in_assessments); }}>
-              {assessment?.show_in_assessments ? 'Remove from Assessments Page' : 'Add to Assessments Page'}
+              {assessment?.show_in_assessments ? 'Remove from Assessments' : 'Add to Assessments'}
             </Button>
           )}
           <Button size="sm" variant="outline" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>
