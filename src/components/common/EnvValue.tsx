@@ -1,14 +1,9 @@
-import {
-  getCO2Status,
-  getNoiseStatus,
-  getTemperatureStatus,
-} from '../../utils/calculations';
+import { getNoiseStatus, getTemperatureStatus } from '../../utils/calculations';
 import type { EnvironmentalStatus } from '../../types';
 
-type Metric = 'co2' | 'temperature' | 'noise';
+type Metric = 'temperature' | 'noise';
 
 const STATUS_FN: Record<Metric, (v: number | null | undefined) => EnvironmentalStatus> = {
-  co2: getCO2Status,
   temperature: getTemperatureStatus,
   noise: getNoiseStatus,
 };

@@ -3,7 +3,7 @@
 -- =============================================================================
 -- WARNING: THIS IS DESTRUCTIVE. Running this permanently deletes every BANHA
 -- table and all data in them (recordings, environmental readings,
--- assessments, settings options, devices, profiles, activity log). There is
+-- assessments, settings options, profiles, activity log). There is
 -- no undo.
 --
 -- Use this only when you want to completely reset the database before
@@ -64,9 +64,6 @@ on public.profiles;
 drop policy if exists "Users can update their own profile"
 on public.profiles;
 
-drop policy if exists "Authenticated users can view devices"
-on public.devices;
-
 drop policy if exists "Authenticated users can manage recordings"
 on public.recordings;
 
@@ -78,9 +75,6 @@ on public.assessments;
 
 drop policy if exists "Authenticated users can manage settings options"
 on public.settings_options;
-
-drop policy if exists "IoT can view devices"
-on public.devices;
 
 drop policy if exists "IoT can create recordings"
 on public.recordings;
@@ -108,6 +102,8 @@ on public.activity_log;
 drop trigger if exists on_auth_user_created on auth.users;
 drop trigger if exists before_recording_stop on public.recordings;
 drop trigger if exists on_assessment_created on public.assessments;
+drop trigger if exists on_assessment_updated on public.assessments;
+drop trigger if exists on_assessment_deleted on public.assessments;
 drop trigger if exists trg_log_recording_insert on public.recordings;
 drop trigger if exists trg_log_recording_update on public.recordings;
 drop trigger if exists trg_log_recording_delete on public.recordings;
@@ -117,6 +113,9 @@ drop trigger if exists trg_log_assessment_delete on public.assessments;
 drop trigger if exists trg_log_settings_insert on public.settings_options;
 drop trigger if exists trg_log_settings_update on public.settings_options;
 drop trigger if exists trg_log_profile_update on public.profiles;
+drop trigger if exists trg_log_settings_delete on public.settings_options;
+drop trigger if exists on_recording_group_changed on public.recordings;
+drop trigger if exists on_recording_deleted_cleanup_group on public.recordings;
 
 
 -- =============================================================================
@@ -124,8 +123,21 @@ drop trigger if exists trg_log_profile_update on public.profiles;
 -- =============================================================================
 
 drop function if exists public.handle_new_user();
+drop function if exists public.get_server_time();
 drop function if exists public.set_recording_end_time();
 drop function if exists public.mark_recording_assessed();
+drop function if exists public.assessment_is_complete(public.assessments);
+drop function if exists public.sync_recording_status_from_assessment();
+drop function if exists public.sync_recording_status_on_group_change();
+drop function if exists public.cleanup_empty_group();
+drop function if exists public.recompute_for_assessment(uuid, uuid);
+drop function if exists public.recompute_recording_status(uuid);
+drop function if exists public.refresh_group_assessment_date(uuid);
+drop function if exists public.group_recordings(uuid[], uuid, text);
+drop function if exists public.ungroup_recording(uuid);
+drop function if exists public.reset_assessment_details(uuid);
+drop function if exists public.archive_assessment(uuid);
+drop function if exists public.restore_assessment(uuid);
 drop function if exists public.log_recording_activity();
 drop function if exists public.log_assessment_activity();
 drop function if exists public.log_settings_activity();
@@ -143,7 +155,7 @@ drop table if exists public.environmental_readings cascade;
 drop table if exists public.assessments cascade;
 drop table if exists public.recordings cascade;
 drop table if exists public.settings_options cascade;
-drop table if exists public.devices cascade;
+drop table if exists public.recording_groups cascade;
 drop table if exists public.activity_log cascade;
 drop table if exists public.profiles cascade;
 

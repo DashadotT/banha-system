@@ -60,6 +60,27 @@ create extension if not exists "uuid-ossp";
 
 
 -- =============================================================================
+-- SERVER TIME
+--
+-- Used by the Live Monitoring / Current Recording duration timers. The web
+-- app synchronizes once against this authoritative server clock, then
+-- advances the displayed duration using the browser's monotonic
+-- performance.now() timer — so recording duration is never affected by the
+-- viewer's computer clock being wrong, adjusted, or drifting mid-session.
+-- =============================================================================
+
+create or replace function public.get_server_time()
+returns timestamptz
+language sql
+stable
+as $$
+  select now();
+$$;
+
+grant execute on function public.get_server_time() to authenticated;
+
+
+-- =============================================================================
 -- PROFILES
 -- =============================================================================
 
@@ -133,44 +154,15 @@ execute function public.handle_new_user();
 
 
 -- =============================================================================
--- DEVICES
--- =============================================================================
-
-create table if not exists public.devices (
-  id uuid primary key default uuid_generate_v4(),
-
-  device_name text not null,
-
-  node_number integer not null
-    check (node_number >= 1),
-
-  status text not null default 'offline'
-    check (
-      status in (
-        'online',
-        'offline',
-        'recording'
-      )
-    ),
-
-  created_at timestamptz not null default now()
-);
-
-
-create index if not exists idx_devices_node_number
-on public.devices(node_number);
-
-
--- =============================================================================
 -- RECORDINGS
+--
+-- BANHA is a single sensing system (Node 1 + Node 2 together), not multiple
+-- interchangeable devices — so a recording is not tied to any device
+-- identifier. recording_id alone connects a session to its readings.
 -- =============================================================================
 
 create table if not exists public.recordings (
   id uuid primary key default uuid_generate_v4(),
-
-  device_id uuid
-    references public.devices(id)
-    on delete set null,
 
   started_at timestamptz not null default now(),
 
@@ -210,10 +202,6 @@ on public.recordings(
   status,
   is_archived
 );
-
-
-create index if not exists idx_recordings_device
-on public.recordings(device_id);
 
 
 create index if not exists idx_recordings_started_at
@@ -277,11 +265,6 @@ create table if not exists public.environmental_readings (
   packet_number integer not null
     check (
       packet_number >= 1
-    ),
-
-  average_co2 numeric(8, 2) not null
-    check (
-      average_co2 >= 0
     ),
 
   average_temperature numeric(6, 2) not null,
@@ -384,8 +367,19 @@ on public.assessments(
 
 
 -- =============================================================================
--- WHEN ASSESSMENT IS ADDED
--- pending_assessment -> completed
+-- KEEP RECORDING STATUS IN SYNC WITH ITS ASSESSMENT
+--
+-- A recording's status should always reflect whether it currently has a
+-- live (non-archived) assessment attached:
+--   - assessment added                -> pending_assessment -> completed
+--   - assessment archived              -> completed -> pending_assessment
+--   - assessment restored              -> pending_assessment -> completed
+--   - assessment permanently deleted   -> completed -> pending_assessment
+--
+-- Without this, archiving or deleting an assessment from the Assessments
+-- page left the Recordings page still showing "Completed" as if nothing
+-- had changed, which is confusing — the recording no longer actually has
+-- assessment data attached.
 -- =============================================================================
 
 create or replace function public.mark_recording_assessed()
@@ -396,16 +390,41 @@ set search_path = public
 as $$
 begin
 
-  update public.recordings
+  if tg_op = 'INSERT' then
 
-  set
-    status = 'completed'
+    update public.recordings
+    set status = 'completed'
+    where id = new.recording_id
+      and status = 'pending_assessment';
 
-  where
-    id = new.recording_id
-    and status = 'pending_assessment';
+  elsif tg_op = 'UPDATE' then
 
-  return new;
+    if old.is_archived = false and new.is_archived = true then
+
+      update public.recordings
+      set status = 'pending_assessment'
+      where id = new.recording_id
+        and status = 'completed';
+
+    elsif old.is_archived = true and new.is_archived = false then
+
+      update public.recordings
+      set status = 'completed'
+      where id = new.recording_id
+        and status = 'pending_assessment';
+
+    end if;
+
+  elsif tg_op = 'DELETE' then
+
+    update public.recordings
+    set status = 'pending_assessment'
+    where id = old.recording_id
+      and status = 'completed';
+
+  end if;
+
+  return coalesce(new, old);
 
 end;
 $$;
@@ -414,9 +433,25 @@ $$;
 drop trigger if exists on_assessment_created
 on public.assessments;
 
+drop trigger if exists on_assessment_updated
+on public.assessments;
+
+drop trigger if exists on_assessment_deleted
+on public.assessments;
+
 
 create trigger on_assessment_created
 after insert on public.assessments
+for each row
+execute function public.mark_recording_assessed();
+
+create trigger on_assessment_updated
+after update on public.assessments
+for each row
+execute function public.mark_recording_assessed();
+
+create trigger on_assessment_deleted
+after delete on public.assessments
 for each row
 execute function public.mark_recording_assessed();
 
@@ -466,9 +501,6 @@ on public.settings_options(
 alter table public.profiles
 enable row level security;
 
-alter table public.devices
-enable row level security;
-
 alter table public.recordings
 enable row level security;
 
@@ -492,9 +524,6 @@ on public.profiles;
 drop policy if exists "Users can update their own profile"
 on public.profiles;
 
-drop policy if exists "Authenticated users can view devices"
-on public.devices;
-
 drop policy if exists "Authenticated users can manage recordings"
 on public.recordings;
 
@@ -506,9 +535,6 @@ on public.assessments;
 
 drop policy if exists "Authenticated users can manage settings options"
 on public.settings_options;
-
-drop policy if exists "IoT can view devices"
-on public.devices;
 
 drop policy if exists "IoT can create recordings"
 on public.recordings;
@@ -550,13 +576,6 @@ with check (
 );
 
 
-create policy "Authenticated users can view devices"
-on public.devices
-for select
-to authenticated
-using (true);
-
-
 create policy "Authenticated users can manage recordings"
 on public.recordings
 for all
@@ -594,13 +613,6 @@ with check (true);
 --
 -- Node 2 uses the Supabase ANON/PUBLISHABLE key.
 -- =============================================================================
-
-create policy "IoT can view devices"
-on public.devices
-for select
-to anon
-using (true);
-
 
 -- START -> Create recording
 
@@ -696,8 +708,6 @@ select
 
   r.id as recording_id,
 
-  r.device_id,
-
   r.started_at,
 
   r.ended_at,
@@ -707,11 +717,6 @@ select
   r.status,
 
   count(e.id) as total_packets,
-
-  round(
-    avg(e.average_co2),
-    2
-  ) as overall_avg_co2,
 
   round(
     avg(e.average_temperature),
@@ -733,8 +738,6 @@ on
 group by
 
   r.id,
-
-  r.device_id,
 
   r.started_at,
 

@@ -99,7 +99,7 @@ export default function Settings() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-3">
           <OptionListManager
             category="subject"
             title="Subjects"
@@ -117,6 +117,18 @@ export default function Settings() {
             title="Assessment Types"
             subtitle="e.g. Quiz, Examination, Activity"
             placeholder="e.g. Quiz"
+          />
+          <OptionListManager
+            category="classroom_type"
+            title="Classroom / Room Type"
+            subtitle="e.g. Room 101, Computer Lab"
+            placeholder="e.g. Room 101"
+          />
+          <OptionListManager
+            category="class_schedule"
+            title="Class Schedule"
+            subtitle="e.g. Mon/Wed 8:00–9:30 AM"
+            placeholder="e.g. Mon/Wed 8:00–9:30 AM"
           />
         </div>
 
