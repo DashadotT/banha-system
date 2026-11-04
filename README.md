@@ -1,7 +1,7 @@
 # BANHA
 ### Bridging Air, Noise, Heat, and Achievement
 
-An IoT-based classroom environmental monitoring and research data management system built for a quasi-experimental study on classroom conditions (CO₂, temperature, noise) and academic performance.
+An IoT-based classroom environmental monitoring and research data management system built for a quasi-experimental study on classroom conditions (temperature, noise) and academic performance.
 
 ---
 
@@ -35,6 +35,18 @@ Then, outside the SQL editor:
 
 4. In **Authentication → Users**, create at least one user (email + password) so you can log in. Their `profiles` row is created automatically; update its `role` to `administrator` or `researcher` as needed (default is `researcher`).
 5. In **Authentication → Providers**, make sure Email/Password sign-in is enabled.
+
+If you are upgrading a database created *before* CO₂ was dropped from the study, run **`supabase/05_remove_co2.sql`** — Stage 1 makes the legacy `average_co2` column optional (so the device can stop sending it) and rebuilds the summary view without it, while preserving historical values. Stage 2, which permanently drops the column, is commented out by default.
+
+If you are upgrading a database created *before* the recording duration timer switched to a server-time baseline, run **`supabase/06_server_time.sql`** to add the `get_server_time()` function it depends on. Live Monitoring and the Dashboard's Current Recording panel call this once per active recording to sync against Supabase's clock, then advance the displayed duration locally using the browser's monotonic timer — so it stays accurate even if the viewer's computer clock is wrong.
+
+If you are upgrading a database created *before* recording status synced with its assessment's archive state, run **`supabase/07_sync_recording_status.sql`**. This keeps a recording's status accurate on the Recordings page whenever its assessment is archived, restored, or permanently deleted — not just when one is first added — and backfills any recording whose status is already out of sync.
+
+4. **`06_feature_update.sql`** — run last (safe on existing data, safe to re-run). Adds recording groups, recording notes, partial assessment details, Classroom / Class Schedule fields, the `Incomplete Assessment Details` status, and the archive/restore/reset functions. It supersedes `05_sync_recording_status.sql` — do not run 05 after it.
+
+5. **`08_assessment_workflow_update.sql`** — run after 06 (additive, safe to re-run). Adds Assessment Duration Type, completed/final-results flag, and the “Add to Assessments Page” setting. Existing assessments stay on the Assessments page and no existing row, status or timestamp is changed. `07_sample_data.sql` is optional demo data — do not run it on a production database.
+
+6. **`09_grouping_rules_update.sql`** — run after 08 (additive, safe to re-run). Classroom / Class Schedule now belong to each recording (filled from the assessment each recording already had), recordings can only be grouped when Subject, Section, Group, Assessment Type and Assessment Number match, and “Completed” now requires the final results. Nothing is deleted; existing rows only receive values in the new columns.
 
 If you ever need to start over, **`supabase/04_teardown.sql`** drops everything the three files above created (tables, policies, triggers, functions, the view, and the Realtime registrations). It is destructive and permanently deletes all data — re-run `01_schema.sql`, `02_activity_log.sql`, and `03_seed.sql` afterward to rebuild.
 
@@ -95,8 +107,11 @@ src/
 ## Key Behaviors
 
 - **Archive by default, delete only when you mean it.** Recordings and assessments use `is_archived` / `archived_at` instead of hard deletes, and are excluded from active lists, Dashboard totals, Pearson correlation, t-tests, and reports the moment they're archived. Records can be restored — or, from **Archived Records** only, permanently deleted with a strongly-worded confirmation, which cascades to any linked environmental readings/assessment.
+- **A recording's status stays in sync with its assessment.** Archiving, restoring, or permanently deleting an assessment automatically flips its recording between "Completed" and "Pending Assessment Details" via a database trigger — so the Recordings and Assessments pages never disagree about the same recording.
+- **Tables scroll instead of growing indefinitely.** Recordings, Assessments, and Archived Records cap at roughly 10 visible rows with a sticky header, scrolling for the rest. Use the **Sort** control on each page (date/status/duration for Recordings; date/section/group/number for Assessments) to find what you need quickly.
+- **The Assessment form warns about unsaved edits** and won't let Enter-key presses in a field silently submit the form — only the explicit Save button does.
 - **Pages update live, not just on refresh.** Dashboard, Recordings, Assessments, Statistical Analysis, Archived Records, Recording Details, and the Settings option lists all subscribe to Supabase Realtime (`src/hooks/useRealtimeRefresh.ts`) and refetch automatically when the underlying data changes — including changes made by Node 2 directly.
-- **Environmental status thresholds are explained in-app.** Every CO₂/Temperature/Noise value is classified Normal/Moderate/Poor (see `src/utils/calculations.ts` for the exact numbers), and an **Info ("Status guide")** button next to these values opens a plain-language explanation of the thresholds.
+- **Environmental status thresholds are explained in-app.** Every Temperature/Noise value is classified Normal/Moderate/Poor (see `src/utils/calculations.ts` for the exact numbers), and an **Info ("Status guide")** button next to these values opens a plain-language explanation of the thresholds.
 - **Activity Log** on the Dashboard shows a running feed of research-data actions — recording start/stop, archive/restore/delete, assessment changes, settings changes, account renames — populated automatically by database triggers (`supabase/02_activity_log.sql`), so it captures actions from Node 2 as well as the web app. Page navigation is never logged.
 - **12-hour time format everywhere**, via the shared utilities in `src/utils/dateTime.ts`.
 - **Live Monitoring** is wired for Supabase Realtime — it subscribes to `INSERT` events on `environmental_readings` and status changes on `recordings`, so a device sending `START` / `DATA` / `STOP` packets updates the UI without a page refresh. The Dashboard also falls back to showing the previous recording's last known values (clearly labeled) while a new recording is waiting for its first packet, rather than going blank.
@@ -110,3 +125,26 @@ src/
 
 - The RLS policies in `01_schema.sql` currently allow any authenticated user full read/write access to research data — tighten these (e.g. restrict assessment/recording writes to `administrator` role) before deploying to production.
 - Node 2 (the ESP32 IoT gateway) writes `recordings` and `environmental_readings` rows directly using the Supabase **anon/publishable key**, via the `"IoT can …"` policies in `01_schema.sql` — not the service role key. This keeps the anon key scoped to only what Node 2 needs (create/view/update recordings, insert/view readings, view devices) rather than granting it full database access. Review these policies before going live, and make sure the seeded test device ID in `03_seed.sql` matches what's configured on Node 2.
+
+## Password recovery (Forgot Password)
+
+Researchers recover access from **Login → Forgot Password?** (`/forgot-password`). The emailed link opens `/reset-password`,
+where a new password (minimum 12 characters) is set with Supabase `updateUser()`; the researcher is then signed out and sent
+to the Login page. No database tables, policies or profiles are touched, and no accounts are created.
+
+Supabase Dashboard setup:
+
+1. **Authentication → URL Configuration**
+   - Site URL: your production URL, e.g. `https://your-app.vercel.app`
+   - Redirect URLs (add each one that you use):
+     - `https://your-app.vercel.app/reset-password`
+     - `http://localhost:5173/reset-password`
+     - for Vercel preview deployments (optional): `https://*-your-team.vercel.app/reset-password`
+2. **Authentication → Email Templates → Reset Password**: keep the default link `{{ .ConfirmationURL }}` (it already redirects to the
+   `redirectTo` above).
+3. **Project Settings → Authentication → SMTP Settings**: configure a custom SMTP provider. Supabase's built-in email service is
+   rate-limited and only meant for testing, so recovery emails may be delayed or not delivered to non-team addresses.
+4. (Optional) **Authentication → Providers → Email**: keep *Enable sign ups* off — recovery never creates users.
+
+No new environment variables are needed (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` only; never put the service-role key
+in the frontend).

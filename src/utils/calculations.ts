@@ -14,40 +14,34 @@ export function calculateScorePercentage(
 }
 
 // ---------------------------------------------------------------------------
-// Environmental status thresholds
-// Based on common ASHRAE / WHO classroom guidance:
-//   CO2 (ppm):       Normal < 1000,  Moderate 1000-1500,  Poor > 1500
-//   Temperature (C): Normal 20-26,   Moderate 26-30 or 18-20, Poor otherwise
-//   Noise (dB):      Normal < 55,    Moderate 55-70,       Poor > 70
+// Environmental status thresholds — as specified by the study:
+//   Temperature (°C):  Normal 20-26,    Moderate 27-29,    Poor > 29
+//   Noise (dBA):       Normal 35-55,    Moderate 56-65,    Poor > 65
+//
+// Readings below the stated "Normal" floor (e.g. a very quiet or cool room)
+// are also treated as Normal, since the study only defines an escalation
+// path on the high side — adjust the lower bounds below if that's not right.
 // ---------------------------------------------------------------------------
-
-export function getCO2Status(co2: number | null | undefined): EnvironmentalStatus {
-  if (co2 === null || co2 === undefined) return 'Normal';
-  if (co2 < 1000) return 'Normal';
-  if (co2 <= 1500) return 'Moderate';
-  return 'Poor';
-}
 
 export function getTemperatureStatus(temp: number | null | undefined): EnvironmentalStatus {
   if (temp === null || temp === undefined) return 'Normal';
-  if (temp >= 20 && temp <= 26) return 'Normal';
-  if ((temp >= 18 && temp < 20) || (temp > 26 && temp <= 30)) return 'Moderate';
+  if (temp <= 26) return 'Normal';
+  if (temp <= 29) return 'Moderate';
   return 'Poor';
 }
 
 export function getNoiseStatus(noise: number | null | undefined): EnvironmentalStatus {
   if (noise === null || noise === undefined) return 'Normal';
-  if (noise < 55) return 'Normal';
-  if (noise <= 70) return 'Moderate';
+  if (noise <= 55) return 'Normal';
+  if (noise <= 65) return 'Moderate';
   return 'Poor';
 }
 
 export function overallEnvironmentalStatus(
-  co2: number | null | undefined,
   temperature: number | null | undefined,
   noise: number | null | undefined
 ): EnvironmentalStatus {
-  const statuses = [getCO2Status(co2), getTemperatureStatus(temperature), getNoiseStatus(noise)];
+  const statuses = [getTemperatureStatus(temperature), getNoiseStatus(noise)];
   if (statuses.includes('Poor')) return 'Poor';
   if (statuses.includes('Moderate')) return 'Moderate';
   return 'Normal';
@@ -61,4 +55,30 @@ export function round(value: number, decimals = 1): number {
 export function mean(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+export function max(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.max(...values);
+}
+
+export function min(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.min(...values);
+}
+
+/**
+ * Overall mean temperature / noise from ALL individual readings (not an
+ * average of per-recording averages), so recordings with different numbers
+ * of readings are weighted correctly.
+ */
+export function combinedMeans(readings: { average_temperature: number; average_noise: number }[]): {
+  packets: number;
+  avgTemperature: number | null;
+  avgNoise: number | null;
+} {
+  if (readings.length === 0) return { packets: 0, avgTemperature: null, avgNoise: null };
+  const t = readings.reduce((sum, r) => sum + r.average_temperature, 0) / readings.length;
+  const n = readings.reduce((sum, r) => sum + r.average_noise, 0) / readings.length;
+  return { packets: readings.length, avgTemperature: Math.round(t * 10) / 10, avgNoise: Math.round(n * 10) / 10 };
 }

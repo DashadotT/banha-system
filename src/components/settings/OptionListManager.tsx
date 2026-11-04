@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Archive, Check, Pencil, Plus, RotateCcw, X } from 'lucide-react';
-import { Card, CardHeader } from '../common/Card';
+import { Archive, Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Card } from '../common/Card';
 import { Input } from '../common/FormField';
 import { Button } from '../common/Button';
-import { EmptyState, ErrorState, LoadingState } from '../common/States';
-import { ArchiveConfirmDialog } from '../common/Modal';
+import { ErrorState, LoadingState } from '../common/States';
+import { ArchiveConfirmDialog, PermanentDeleteConfirmDialog, RestoreConfirmDialog } from '../common/Modal';
 import { useAsync } from '../../hooks/useAsync';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import {
   addSettingOption,
   archiveSettingOption,
+  deleteSettingOption,
   fetchArchivedSettingOptions,
   fetchSettingOptions,
   restoreSettingOption,
@@ -30,17 +31,14 @@ export function OptionListManager({
   placeholder: string;
 }) {
   const { data, loading, error, refetch } = useAsync(() => fetchSettingOptions(category));
-  const {
-    data: archived,
-    loading: loadingArchived,
-    refetch: refetchArchived,
-  } = useAsync(() => fetchArchivedSettingOptions(category));
+  const { data: archived, refetch: refetchArchived } = useAsync(() => fetchArchivedSettingOptions(category));
 
   useRealtimeRefresh(['settings_options'], () => {
     refetch();
     refetchArchived();
   });
 
+  const [view, setView] = useState<'active' | 'archived'>('active');
   const [value, setValue] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -51,9 +49,13 @@ export function OptionListManager({
   const [editError, setEditError] = useState<string | null>(null);
 
   const [archiveTarget, setArchiveTarget] = useState<SettingOption | null>(null);
-  const [archiving, setArchiving] = useState(false);
-  const [restoringId, setRestoringId] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<SettingOption | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SettingOption | null>(null);
+  const [working, setWorking] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const activeList = data ?? [];
+  const archivedList = archived ?? [];
 
   function refetchAll() {
     refetch();
@@ -65,7 +67,7 @@ export function OptionListManager({
     setAddError(null);
     const trimmed = value.trim();
     if (!trimmed) return;
-    if ((data ?? []).some((opt) => opt.value.toLowerCase() === trimmed.toLowerCase())) {
+    if (activeList.some((opt) => opt.value.toLowerCase() === trimmed.toLowerCase())) {
       setAddError('This option already exists.');
       return;
     }
@@ -73,24 +75,13 @@ export function OptionListManager({
     try {
       await addSettingOption(category, trimmed);
       setValue('');
-      refetch();
+      setView('active');
+      refetchAll();
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Could not add option.');
     } finally {
       setAdding(false);
     }
-  }
-
-  function startEdit(opt: SettingOption) {
-    setEditingId(opt.id);
-    setEditValue(opt.value);
-    setEditError(null);
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setEditValue('');
-    setEditError(null);
   }
 
   async function saveEdit(id: string) {
@@ -109,155 +100,197 @@ export function OptionListManager({
     }
   }
 
-  async function handleArchiveConfirm() {
-    if (!archiveTarget) return;
-    setArchiving(true);
+  async function runAction(action: () => Promise<void>, close: () => void) {
+    setWorking(true);
+    setActionError(null);
     try {
-      await archiveSettingOption(archiveTarget.id);
-      setArchiveTarget(null);
+      await action();
+      close();
       refetchAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
-      setArchiving(false);
+      setWorking(false);
     }
   }
 
-  async function handleRestore(id: string) {
-    setRestoringId(id);
-    try {
-      await restoreSettingOption(id);
-      refetchAll();
-    } finally {
-      setRestoringId(null);
-    }
-  }
+  const iconBtn = 'rounded-md p-1.5 text-slate-400 disabled:opacity-50';
 
   return (
-    <Card>
-      <CardHeader title={title} subtitle={subtitle} />
+    <Card className="flex h-full flex-col">
+      <div className="mb-3 h-10 min-w-0">
+        <h3 className="truncate text-sm font-semibold text-primary">{title}</h3>
+        <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>
+      </div>
 
-      <form onSubmit={handleAdd} className="mb-4 flex gap-2">
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1"
-        />
+      <form onSubmit={handleAdd} className="flex gap-2">
+        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1" />
         <Button type="submit" size="sm" icon={<Plus size={14} />} loading={adding}>
           Add
         </Button>
       </form>
+      <p className="mb-2 mt-1 min-h-[1.25rem] text-xs text-rose-600">{addError}</p>
 
-      {addError && (
-        <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-          {addError}
-        </div>
-      )}
-
-      {loading && <LoadingState label="Loading options…" />}
-      {error && <ErrorState message={error} onRetry={refetch} />}
-
-      {!loading && !error && (data ?? []).length === 0 && (
-        <EmptyState title="No options yet" description="Add your first option above." />
-      )}
-
-      {!loading && !error && (data ?? []).length > 0 && (
-        <ul className="divide-y divide-border rounded-md border border-border">
-          {(data ?? []).map((opt) => (
-            <li key={opt.id} className="flex items-center justify-between gap-2 px-3 py-2">
-              {editingId === opt.id ? (
-                <>
-                  <div className="flex-1">
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="py-1"
-                      autoFocus
-                    />
-                    {editError && <p className="mt-1 text-xs text-rose-600">{editError}</p>}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => saveEdit(opt.id)}
-                      disabled={savingEdit}
-                      className="rounded-md p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"
-                      title="Save"
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      disabled={savingEdit}
-                      className="rounded-md p-1.5 text-slate-400 hover:bg-surface disabled:opacity-50"
-                      title="Cancel"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm text-primary">{opt.value}</span>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => startEdit(opt)}
-                      className="rounded-md p-1.5 text-slate-400 hover:bg-secondary-50 hover:text-secondary-700"
-                      title="Edit"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => setArchiveTarget(opt)}
-                      className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                      title="Archive"
-                    >
-                      <Archive size={14} />
-                    </button>
-                  </div>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {(archived ?? []).length > 0 && (
-        <div className="mt-4">
+      <div className="mb-2 flex gap-1 border-b border-border text-xs font-medium">
+        {(['active', 'archived'] as const).map((v) => (
           <button
-            onClick={() => setShowArchived((v) => !v)}
-            className="text-xs font-medium text-slate-500 hover:text-primary"
+            key={v}
+            onClick={() => setView(v)}
+            className={`-mb-px border-b-2 px-3 py-1.5 ${
+              view === v ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-primary'
+            }`}
           >
-            {showArchived ? 'Hide' : 'Show'} archived ({(archived ?? []).length})
+            {v === 'active' ? `Active (${activeList.length})` : `Archived (${archivedList.length})`}
           </button>
-          {showArchived && (
-            <ul className="mt-2 divide-y divide-border rounded-md border border-dashed border-border">
-              {loadingArchived && (
-                <li className="px-3 py-2 text-xs text-slate-400">Loading…</li>
-              )}
-              {(archived ?? []).map((opt) => (
-                <li key={opt.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                  <span className="text-sm text-slate-400 line-through">{opt.value}</span>
+        ))}
+      </div>
+
+      {/* Fixed height ≈ 3 rows: the list scrolls, the card never grows. */}
+      <div className="h-[8.25rem] overflow-y-auto rounded-md border border-border">
+        {view === 'active' && loading && <LoadingState label="Loading options…" />}
+        {view === 'active' && error && <ErrorState message={error} onRetry={refetch} />}
+
+        {view === 'active' && !loading && !error && activeList.length === 0 && (
+          <p className="flex h-full items-center justify-center px-3 text-center text-xs text-slate-400">
+            No options yet — add your first one above.
+          </p>
+        )}
+
+        {view === 'active' && !loading && !error && activeList.length > 0 && (
+          <ul className="divide-y divide-border">
+            {activeList.map((opt) => (
+              <li key={opt.id} className="flex h-11 items-center justify-between gap-2 px-3">
+                {editingId === opt.id ? (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="py-1"
+                        autoFocus
+                        title={editError ?? undefined}
+                      />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button onClick={() => saveEdit(opt.id)} disabled={savingEdit} className={`${iconBtn} text-emerald-600 hover:bg-emerald-50`} title="Save">
+                        <Check size={14} />
+                      </button>
+                      <button onClick={() => setEditingId(null)} disabled={savingEdit} className={`${iconBtn} hover:bg-surface`} title="Cancel">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="min-w-0 truncate text-sm text-primary" title={opt.value}>
+                      {opt.value}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingId(opt.id);
+                          setEditValue(opt.value);
+                          setEditError(null);
+                        }}
+                        className={`${iconBtn} hover:bg-secondary-50 hover:text-secondary-700`}
+                        title="Edit"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActionError(null);
+                          setArchiveTarget(opt);
+                        }}
+                        className={`${iconBtn} hover:bg-rose-50 hover:text-rose-600`}
+                        title="Archive"
+                      >
+                        <Archive size={14} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {view === 'archived' && archivedList.length === 0 && (
+          <p className="flex h-full items-center justify-center px-3 text-center text-xs text-slate-400">
+            No archived options.
+          </p>
+        )}
+
+        {view === 'archived' && archivedList.length > 0 && (
+          <ul className="divide-y divide-border">
+            {archivedList.map((opt) => (
+              <li key={opt.id} className="flex h-11 items-center justify-between gap-2 px-3">
+                <span className="min-w-0 truncate text-sm text-slate-400 line-through" title={opt.value}>
+                  {opt.value}
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
                   <button
-                    onClick={() => handleRestore(opt.id)}
-                    disabled={restoringId === opt.id}
-                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-secondary-700 hover:bg-secondary-50 disabled:opacity-50"
+                    onClick={() => {
+                      setActionError(null);
+                      setRestoreTarget(opt);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-secondary-700 hover:bg-secondary-50"
                   >
                     <RotateCcw size={13} />
                     Restore
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setDeleteTarget(opt);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                    title="Permanently delete"
+                  >
+                    <Trash2 size={13} />
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <ArchiveConfirmDialog
         open={Boolean(archiveTarget)}
         onClose={() => setArchiveTarget(null)}
-        onConfirm={handleArchiveConfirm}
+        onConfirm={() =>
+          archiveTarget && runAction(() => archiveSettingOption(archiveTarget.id), () => setArchiveTarget(null))
+        }
         itemLabel={archiveTarget?.value ?? ''}
-        loading={archiving}
-        description="It will disappear from dropdowns immediately, but any existing recordings or assessments that already used it keep their historical data unchanged. You can restore it here at any time."
+        loading={working}
+        error={actionError}
+        description="It will disappear from dropdowns immediately, but any existing recordings or assessments that already used it keep their historical data unchanged. You can restore it from the Archived tab at any time."
+      />
+
+      <RestoreConfirmDialog
+        open={Boolean(restoreTarget)}
+        onClose={() => setRestoreTarget(null)}
+        onConfirm={() =>
+          restoreTarget && runAction(() => restoreSettingOption(restoreTarget.id), () => setRestoreTarget(null))
+        }
+        itemLabel={restoreTarget?.value ?? ''}
+        loading={working}
+        error={actionError}
+        description="It will appear in dropdowns again."
+      />
+
+      <PermanentDeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() =>
+          deleteTarget && runAction(() => deleteSettingOption(deleteTarget.id), () => setDeleteTarget(null))
+        }
+        itemLabel={deleteTarget?.value ?? ''}
+        loading={working}
+        error={actionError}
+        description={`Permanently deleting “${deleteTarget?.value ?? ''}” removes it from this list for good — it cannot be restored. Existing recordings and assessments that already saved this value keep their data unchanged.`}
       />
     </Card>
   );

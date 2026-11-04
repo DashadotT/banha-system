@@ -20,7 +20,7 @@ create table if not exists public.activity_log (
 
   actor_id uuid references auth.users(id) on delete set null,
 
-  actor_name text not null default 'BANHA Device (Node 2)',
+  actor_name text not null default 'BANHA System (Node 2)',
 
   action text not null,
 
@@ -74,7 +74,7 @@ begin
   )
   values (
     v_actor_id,
-    coalesce(v_actor_name, 'BANHA Device (Node 2)'),
+    coalesce(v_actor_name, 'BANHA System (Node 2)'),
     p_action,
     p_entity_type,
     p_entity_label
@@ -98,12 +98,10 @@ declare
   v_label text;
 begin
 
-  select coalesce(d.device_name, 'Unknown device')
-  into v_label
-  from public.devices d
-  where d.id = coalesce(new.device_id, old.device_id);
-
-  v_label := coalesce(v_label, 'Unknown device');
+  -- BANHA is a single sensing system, so recordings are identified by their
+  -- own ID (the same short form shown in the Recordings table) rather than
+  -- by any device name.
+  v_label := 'Recording ' || left(coalesce(new.id, old.id)::text, 8);
 
   if tg_op = 'INSERT' then
 

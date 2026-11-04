@@ -4,6 +4,7 @@ import { Button } from '../common/Button';
 import { formatDate, formatDateShort } from '../../utils/dateTime';
 import { downloadCsv } from '../../utils/csv';
 import { fetchRecordingsDataset } from '../../services/analysisService';
+import { exportRecordingsCsv } from '../../services/exportService';
 import type { AnalysisRow } from '../../services/analysisService';
 import type { PearsonResult, TTestResult } from '../../types';
 
@@ -26,9 +27,8 @@ export function AnalysisReport({
 
   function handleExportCsv() {
     const headers = [
-      'Recording ID',
-      'Device',
-      'Recording Date',
+      'Recording ID(s)',
+      'Recording Date(s)',
       'Subject',
       'Section',
       'Group',
@@ -38,26 +38,35 @@ export function AnalysisReport({
       'Class Average Score',
       'Total Possible Score',
       'Score Percentage',
-      'Average CO2 (ppm)',
+      'Classroom / Room Type',
+      'Class Schedule',
       'Average Temperature (C)',
-      'Average Noise (dB)',
+      'Highest Temperature (C)',
+      'Lowest Temperature (C)',
+      'Average Noise (dBA)',
+      'Highest Noise (dBA)',
+      'Lowest Noise (dBA)',
     ];
     const csvRows = rows.map((r) => [
-      r.assessment.recording_id,
-      r.assessment.recording?.device?.device_name ?? '',
-      formatDateShort(r.assessment.recording?.started_at ?? null),
-      r.assessment.subject,
-      r.assessment.section,
-      r.assessment.group_type,
-      r.assessment.assessment_type,
+      r.recordings.map((x) => x.id).join('; '),
+      r.recordings.map((x) => formatDateShort(x.started_at)).join('; '),
+      r.assessment.subject ?? '',
+      r.assessment.section ?? '',
+      r.assessment.group_type ?? '',
+      r.assessment.assessment_type ?? '',
       r.assessment.assessment_number,
       r.assessment.assessment_date,
       r.assessment.class_average_score,
       r.assessment.total_possible_score,
       r.assessment.score_percentage,
-      r.avgCo2,
+      Array.from(new Set(r.recordings.map((x) => x.classroom_type).filter(Boolean))).join('; '),
+      Array.from(new Set(r.recordings.map((x) => x.class_schedule).filter(Boolean))).join('; '),
       r.avgTemperature,
+      r.peakTemperature,
+      r.lowestTemperature,
       r.avgNoise,
+      r.peakNoise,
+      r.lowestNoise,
     ]);
     downloadCsv(`banha-raw-data-${new Date().toISOString().slice(0, 10)}`, headers, csvRows);
   }
@@ -66,31 +75,7 @@ export function AnalysisReport({
     setExportingRecordings(true);
     try {
       const dataset = await fetchRecordingsDataset({ from: dateFrom || null, to: dateTo || null });
-      const headers = [
-        'Recording ID',
-        'Device',
-        'Start',
-        'End',
-        'Duration (s)',
-        'Status',
-        'Data Packets',
-        'Average CO2 (ppm)',
-        'Average Temperature (C)',
-        'Average Noise (dB)',
-      ];
-      const csvRows = dataset.map((d) => [
-        d.recording.id,
-        d.recording.device?.device_name ?? '',
-        d.recording.started_at,
-        d.recording.ended_at ?? '',
-        d.recording.duration_seconds ?? '',
-        d.recording.status,
-        d.packetCount,
-        d.avgCo2,
-        d.avgTemperature,
-        d.avgNoise,
-      ]);
-      downloadCsv(`banha-all-recordings-${new Date().toISOString().slice(0, 10)}`, headers, csvRows);
+      exportRecordingsCsv(dataset);
     } finally {
       setExportingRecordings(false);
     }

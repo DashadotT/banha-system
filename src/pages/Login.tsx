@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { CheckCircle2, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Logo } from '../components/layout/Logo';
 import { Button } from '../components/common/Button';
+import { RECOVERY_SUCCESS_MESSAGE } from '../utils/passwordRecovery';
 
 export default function Login() {
   const { login, isAuthenticated, isLoading } = useAuth();
+  const passwordReset = Boolean((useLocation().state as { passwordReset?: boolean } | null)?.passwordReset);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -52,6 +54,13 @@ export default function Login() {
             </p>
           </div>
 
+          {passwordReset && (
+            <div className="mb-4 flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
+              <span>{RECOVERY_SUCCESS_MESSAGE}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
               <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-slate-700">
@@ -66,7 +75,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@university.edu"
+                  placeholder="user@gmail.com"
                   className="w-full rounded-md border border-border bg-white py-2.5 pl-9 pr-3 text-sm text-primary placeholder:text-slate-400 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary"
                 />
               </div>
@@ -96,6 +105,11 @@ export default function Login() {
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
+              </div>
+              <div className="mt-1.5 text-right">
+                <Link to="/forgot-password" className="text-xs font-medium text-secondary-700 hover:text-primary">
+                  Forgot Password?
+                </Link>
               </div>
             </div>
 
