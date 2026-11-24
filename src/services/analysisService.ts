@@ -204,6 +204,9 @@ export function runWelchTTest(rows: AnalysisRow[], mode: ScoreMode, subject?: st
     const obs: GroupObservation = {
       label: parts.length > 0 ? parts.join(' · ') : 'Assessment',
       subject: a.subject ?? 'Unspecified',
+      assessmentType: a.assessment_type,
+      assessmentNumber: a.assessment_number,
+      section: a.section,
       group: a.group_type,
       score,
     };

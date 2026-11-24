@@ -33,6 +33,9 @@ export interface GroupObservation {
   /** e.g. "Mathematics · Quiz · #2 · Section A" */
   label: string;
   subject: string;
+  assessmentType?: string | null;
+  assessmentNumber?: number | null;
+  section?: string | null;
   group: 'Experimental' | 'Comparison';
   score: number;
 }
