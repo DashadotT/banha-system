@@ -67,6 +67,20 @@ export interface PairedTTestResult {
   pairs: PairedObservation[];
 }
 
+export interface TTestResult {
+  subject: string;
+  nExperimental: number;
+  nComparison: number;
+  meanExperimental: number;
+  meanComparison: number;
+  tValue: number;
+  degreesOfFreedom: number;
+  pValue: number;
+  significant: boolean;
+  decision: string;
+  interpretation: string;
+}
+
 export interface DescriptiveStats {
   label: string;
   unit: string;
