@@ -1,4 +1,4 @@
-import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { fitDomain } from '../../utils/chartScale';
 
 interface ScatterPoint {
@@ -6,8 +6,29 @@ interface ScatterPoint {
   y: number;
 }
 
-interface TrendPoint extends ScatterPoint {
-  trend: true;
+interface DotShapeProps {
+  cx?: number;
+  cy?: number;
+  isActive?: boolean;
+}
+
+function renderScatterDot(color: string) {
+  return ({ cx, cy, isActive }: DotShapeProps) => {
+    if (cx == null || cy == null) return <g />;
+    return (
+      <g style={{ cursor: 'pointer' }}>
+        <circle cx={cx} cy={cy} r={10} fill="transparent" />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={isActive ? 6 : 4.5}
+          fill={color}
+          stroke={isActive ? '#002858' : '#ffffff'}
+          strokeWidth={isActive ? 2 : 1.5}
+        />
+      </g>
+    );
+  };
 }
 
 /**
@@ -43,14 +64,23 @@ export function CorrelationScatter({
   const ys = data.map((d) => d.y);
   const xFit = fitDomain(xs, xMinSpan);
   const yFit = fitDomain(ys, 5);
-  const trendPoints: TrendPoint[] =
-    trend && data.length > 1
-      ? [Math.min(...xs), Math.max(...xs)].map((x) => ({ x, y: trend.slope * x + trend.intercept, trend: true as const }))
-      : [];
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const trendSegment =
+    trend && data.length > 1 && minX !== maxX
+      ? ([
+          { x: minX, y: trend.slope * minX + trend.intercept },
+          { x: maxX, y: trend.slope * maxX + trend.intercept },
+        ] as const)
+      : null;
+
+  const dotShape = renderScatterDot(color);
+  const xUnitText = xUnit ? ` ${xUnit}` : '';
+  const yUnitText = yUnit === '%' ? '%' : yUnit ? ` ${yUnit}` : '';
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart margin={{ top: 8, right: 16, left: 0, bottom: 20 }}>
+      <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#E2E6EC" />
         <XAxis
           type="number"
@@ -80,36 +110,32 @@ export function CorrelationScatter({
         <Tooltip
           cursor={{ strokeDasharray: '3 3' }}
           content={({ active, payload }) => {
-            const p = payload?.[0]?.payload as (ScatterPoint & { trend?: boolean }) | undefined;
-            if (!active || !p || p.trend) return null;
+            const p = payload?.[0]?.payload as ScatterPoint | undefined;
+            if (!active || !p) return null;
             return (
               <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs shadow-card">
                 <p className="text-slate-600">
-                  {xLabel}: <span className="mono-num font-semibold text-primary">{p.x} {xUnit}</span>
+                  {xLabel}: <span className="mono-num font-semibold text-primary">{p.x}{xUnitText}</span>
                 </p>
                 <p className="text-slate-600">
-                  {yLabel}: <span className="mono-num font-semibold text-primary">{p.y} {yUnit}</span>
+                  {yLabel}: <span className="mono-num font-semibold text-primary">{p.y}{yUnitText}</span>
                 </p>
               </div>
             );
           }}
         />
-        <Scatter data={data} fill={color} isAnimationActive={false} />
-        {trendPoints.length > 0 && (
-          <Line
-            data={trendPoints}
-            dataKey="y"
-            type="linear"
+        {trendSegment && (
+          <ReferenceLine
+            segment={trendSegment}
+            ifOverflow="hidden"
             stroke="#002858"
             strokeWidth={2}
             strokeDasharray="6 4"
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-            legendType="none"
+            style={{ pointerEvents: 'none' }}
           />
         )}
-      </ComposedChart>
+        <Scatter data={data} fill={color} shape={dotShape} activeShape={dotShape} isAnimationActive={false} />
+      </ScatterChart>
     </ResponsiveContainer>
   );
 }
