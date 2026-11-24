@@ -24,6 +24,8 @@ import { fetchAnalysisDataset, type AnalysisRow } from '../services/analysisServ
 import { exportAssessmentsCsv } from '../services/exportService';
 import { fetchSettingOptions } from '../services/settingsService';
 import { formatDateShort } from '../utils/dateTime';
+import { useScoreMode } from '../context/ScoreModeContext';
+import { formatScoreValue, getScoreValue } from '../utils/scoreMode';
 import { assessmentTitle, distinctValues, getAssessmentState } from '../utils/assessment';
 import type { GroupType } from '../types';
 
@@ -35,6 +37,7 @@ const distinct = (values: (string | null)[]) =>
   Array.from(new Set(values.filter((v): v is string => Boolean(v)))).sort();
 
 export default function Assessments() {
+  const { mode, meta } = useScoreMode();
   const { data: rows, loading, error, refetch } = useAsync(() => fetchAnalysisDataset({ publishedOnly: true }));
   useRealtimeRefresh(['assessments', 'recordings', 'environmental_readings'], refetch);
   const { data: typeOptions } = useAsync(() => fetchSettingOptions('assessment_type'));
@@ -321,7 +324,7 @@ export default function Assessments() {
                   <Th>Schedule</Th>
                   <Th>Date</Th>
                   <Th>Recordings</Th>
-                  <Th>Score %</Th>
+                  <Th>{meta.short}</Th>
                   <Th>Avg Temp</Th>
                   <Th>Avg Noise</Th>
                   <Th>Progress</Th>
@@ -364,7 +367,16 @@ export default function Assessments() {
                         )}
                       </Td>
                       <Td className="mono-num font-semibold text-primary">
-                        {a.score_percentage !== null ? `${a.score_percentage}%` : dash}
+                        {getScoreValue(a, mode) !== null ? (
+                          <>
+                            {formatScoreValue(getScoreValue(a, mode), mode)}
+                            {mode === 'average' && a.total_possible_score !== null && (
+                              <span className="ml-1 text-xs font-normal text-slate-400">/ {a.total_possible_score}</span>
+                            )}
+                          </>
+                        ) : (
+                          dash
+                        )}
                       </Td>
                       <Td>
                         <EnvValue metric="temperature" value={r.avgTemperature} unit="°C" />

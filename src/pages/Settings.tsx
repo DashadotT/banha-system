@@ -8,6 +8,8 @@ import { Input } from '../components/common/FormField';
 import { Button } from '../components/common/Button';
 import { Logo } from '../components/layout/Logo';
 import { OptionListManager } from '../components/settings/OptionListManager';
+import { ScoreModeSetting } from '../components/settings/ScoreModeSetting';
+import { EnvironmentalThresholdsCard } from '../components/settings/EnvironmentalThresholdsCard';
 import { useAuth } from '../context/AuthContext';
 import { updateProfileName } from '../services/authService';
 import { APP_DESCRIPTION, APP_STACK, APP_TAGLINE, APP_VERSION } from '../config/appInfo';
@@ -98,6 +100,10 @@ export default function Settings() {
             </Badge>
           </div>
         </Card>
+
+        <ScoreModeSetting />
+
+        <EnvironmentalThresholdsCard />
 
         <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-3">
           <OptionListManager

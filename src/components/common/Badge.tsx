@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { EnvLevel } from '../../utils/calculations';
 
 type BadgeTone = 'normal' | 'moderate' | 'poor' | 'neutral' | 'accent' | 'archived';
 
@@ -30,8 +31,8 @@ export function Badge({
   );
 }
 
-export function statusToTone(status: 'Normal' | 'Moderate' | 'Poor'): BadgeTone {
-  if (status === 'Normal') return 'normal';
-  if (status === 'Moderate') return 'moderate';
+export function levelToTone(level: EnvLevel): BadgeTone {
+  if (level === 'good') return 'normal';
+  if (level === 'fair') return 'moderate';
   return 'poor';
 }

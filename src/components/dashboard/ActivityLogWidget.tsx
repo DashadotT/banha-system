@@ -77,7 +77,7 @@ export function ActivityLogWidget({
       )}
 
       {!loading && !error && (entries ?? []).length > 0 && (
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto pr-1">
+        <ul className="max-h-[34rem] divide-y divide-border overflow-y-auto pr-1">
           {[...(entries ?? [])]
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
             .map((entry) => {

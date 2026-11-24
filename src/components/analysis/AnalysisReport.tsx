@@ -1,211 +1,124 @@
-import { useState } from 'react';
-import { Download, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { Button } from '../common/Button';
-import { formatDate, formatDateShort } from '../../utils/dateTime';
-import { downloadCsv } from '../../utils/csv';
-import { fetchRecordingsDataset } from '../../services/analysisService';
-import { exportRecordingsCsv } from '../../services/exportService';
+import { Badge } from '../common/Badge';
+import { DescriptiveStatsTable } from './DescriptiveStatsTable';
+import { PearsonAnalysis } from './PearsonAnalysis';
+import { PairedTTestAnalysis } from './PairedTTestAnalysis';
+import { formatDate } from '../../utils/dateTime';
 import type { AnalysisRow } from '../../services/analysisService';
-import type { PearsonResult, TTestResult } from '../../types';
+import type { ScoreMode, ScoreModeMeta } from '../../utils/scoreMode';
+import type { DescriptiveStats, PairedTTestResult, PearsonResult } from '../../types';
 
+/** Plain-language one-line conclusion for each test, used in the summary of findings. */
+function findings(pearson: PearsonResult[], paired: PairedTTestResult): string[] {
+  const lines = pearson.map((r) => r.interpretation);
+  lines.push(paired.interpretation);
+  return lines;
+}
+
+/**
+ * Printable research report. It brings together the OVERALL results of the
+ * current filter selection — descriptive statistics, Pearson correlation and
+ * the paired-samples t-test — together with their figures, and is printed or
+ * saved as a PDF from the browser.
+ */
 export function AnalysisReport({
   rows,
+  descriptiveStats,
   pearsonResults,
-  tTestResults,
+  pairedResult,
+  mode,
+  meta,
   filterSummary,
-  dateFrom,
-  dateTo,
 }: {
   rows: AnalysisRow[];
+  descriptiveStats: DescriptiveStats[];
   pearsonResults: PearsonResult[];
-  tTestResults: TTestResult[];
+  pairedResult: PairedTTestResult;
+  mode: ScoreMode;
+  meta: ScoreModeMeta;
   filterSummary: string;
-  dateFrom?: string;
-  dateTo?: string;
 }) {
-  const [exportingRecordings, setExportingRecordings] = useState(false);
-
-  function handleExportCsv() {
-    const headers = [
-      'Recording ID(s)',
-      'Recording Date(s)',
-      'Subject',
-      'Section',
-      'Group',
-      'Assessment Type',
-      'Assessment Number',
-      'Assessment Date',
-      'Class Average Score',
-      'Total Possible Score',
-      'Score Percentage',
-      'Classroom / Room Type',
-      'Class Schedule',
-      'Average Temperature (C)',
-      'Highest Temperature (C)',
-      'Lowest Temperature (C)',
-      'Average Noise (dBA)',
-      'Highest Noise (dBA)',
-      'Lowest Noise (dBA)',
-    ];
-    const csvRows = rows.map((r) => [
-      r.recordings.map((x) => x.id).join('; '),
-      r.recordings.map((x) => formatDateShort(x.started_at)).join('; '),
-      r.assessment.subject ?? '',
-      r.assessment.section ?? '',
-      r.assessment.group_type ?? '',
-      r.assessment.assessment_type ?? '',
-      r.assessment.assessment_number,
-      r.assessment.assessment_date,
-      r.assessment.class_average_score,
-      r.assessment.total_possible_score,
-      r.assessment.score_percentage,
-      Array.from(new Set(r.recordings.map((x) => x.classroom_type).filter(Boolean))).join('; '),
-      Array.from(new Set(r.recordings.map((x) => x.class_schedule).filter(Boolean))).join('; '),
-      r.avgTemperature,
-      r.peakTemperature,
-      r.lowestTemperature,
-      r.avgNoise,
-      r.peakNoise,
-      r.lowestNoise,
-    ]);
-    downloadCsv(`banha-raw-data-${new Date().toISOString().slice(0, 10)}`, headers, csvRows);
-  }
-
-  async function handleExportRecordings() {
-    setExportingRecordings(true);
-    try {
-      const dataset = await fetchRecordingsDataset({ from: dateFrom || null, to: dateTo || null });
-      exportRecordingsCsv(dataset);
-    } finally {
-      setExportingRecordings(false);
-    }
-  }
+  const experimental = rows.filter((r) => r.assessment.group_type === 'Experimental').length;
+  const comparison = rows.filter((r) => r.assessment.group_type === 'Comparison').length;
+  const conclusions = findings(pearsonResults, pairedResult);
 
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <p className="text-sm text-slate-500">
-          Review the report below, then print/save as PDF or export the underlying data.
+          Review the overall results below, then print the report or save it as a PDF.
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Download size={14} />}
-            onClick={handleExportCsv}
-          >
-            Export Raw Data (CSV)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Download size={14} />}
-            loading={exportingRecordings}
-            onClick={handleExportRecordings}
-          >
-            Export All Recordings (CSV)
-          </Button>
-          <Button variant="primary" size="sm" icon={<Printer size={14} />} onClick={() => window.print()}>
-            Print Report
-          </Button>
-        </div>
+        <Button variant="primary" size="sm" icon={<Printer size={14} />} onClick={() => window.print()}>
+          Print Report
+        </Button>
       </div>
 
-      <div className="rounded-lg border border-border bg-white p-6 shadow-card print:border-0 print:p-0 print:shadow-none">
-        <div className="mb-6 border-b border-border pb-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-secondary-600">
-            BANHA Research Report
-          </p>
-          <h2 className="mt-1 text-lg font-bold text-primary">Statistical Analysis Summary</h2>
+      <div className="space-y-8 rounded-lg border border-border bg-white p-6 shadow-card print:space-y-6 print:border-0 print:p-0 print:shadow-none">
+        <header className="border-b border-border pb-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-secondary-600">BANHA Research Report</p>
+          <h2 className="mt-1 text-xl font-bold text-primary">
+            Classroom Environment and Academic Performance — Statistical Analysis
+          </h2>
           <p className="mt-1 text-xs text-slate-500">Generated {formatDate(new Date())}</p>
-          <p className="mt-2 text-xs text-slate-600">{filterSummary}</p>
-        </div>
+          <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1 text-xs text-slate-600 sm:grid-cols-2">
+            <div>
+              <dt className="inline font-semibold text-primary">Dataset filters: </dt>
+              <dd className="inline">{filterSummary}</dd>
+            </div>
+            <div>
+              <dt className="inline font-semibold text-primary">Score used: </dt>
+              <dd className="inline">{meta.label}</dd>
+            </div>
+          </dl>
+        </header>
 
-        <section className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold text-primary">Dataset Overview</h3>
-          <p className="text-sm text-slate-600">
-            Sample size (n): <span className="font-semibold text-primary">{rows.length}</span> non-archived
-            assessment record{rows.length === 1 ? '' : 's'}.
-          </p>
+        <section className="print:break-inside-avoid">
+          <h3 className="mb-2 text-sm font-semibold text-primary">1. Dataset Overview</h3>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600">
+            <span>
+              Assessments analysed: <span className="font-semibold text-primary">{rows.length}</span>
+            </span>
+            <span>
+              <Badge tone="accent">Experimental</Badge> <span className="font-semibold text-primary">{experimental}</span>
+            </span>
+            <span>
+              <Badge tone="neutral">Comparison</Badge> <span className="font-semibold text-primary">{comparison}</span>
+            </span>
+            <span>
+              Matched pairs: <span className="font-semibold text-primary">{pairedResult.nPairs}</span>
+            </span>
+          </div>
         </section>
 
-        <section className="mb-6">
-          <h3 className="mb-3 text-sm font-semibold text-primary">
-            Pearson Product-Moment Correlation
-          </h3>
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-2 pr-3 font-semibold text-slate-500">Variables</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">n</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">r</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">p-value</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pearsonResults.map((r) => (
-                <tr key={`${r.variableX}-${r.variableY}`} className="border-b border-border align-top">
-                  <td className="py-2 pr-3 font-medium text-primary">
-                    {r.variableX} vs. {r.variableY}
-                  </td>
-                  <td className="py-2 pr-3">{r.n}</td>
-                  <td className="py-2 pr-3">{r.r}</td>
-                  <td className="py-2 pr-3">{r.pValue}</td>
-                  <td className="py-2 pr-3">{r.significant ? 'Significant' : 'Not significant'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-3 space-y-1.5">
-            {pearsonResults.map((r) => (
-              <p key={`${r.variableX}-interp`} className="text-xs leading-relaxed text-slate-600">
-                {r.interpretation}
-              </p>
+        <section className="print:break-inside-avoid">
+          <h3 className="mb-2 text-sm font-semibold text-primary">2. Summary of Findings</h3>
+          <ul className="list-disc space-y-1.5 pl-5 text-xs leading-relaxed text-slate-600">
+            {conclusions.map((c) => (
+              <li key={c}>{c}</li>
             ))}
-          </div>
+          </ul>
         </section>
 
         <section>
-          <h3 className="mb-3 text-sm font-semibold text-primary">Independent Samples T-Test</h3>
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-2 pr-3 font-semibold text-slate-500">Subject</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">n (Exp.)</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">n (Comp.)</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">Mean (Exp.)</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">Mean (Comp.)</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">t</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">df</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">p-value</th>
-                <th className="py-2 pr-3 font-semibold text-slate-500">Decision</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tTestResults.map((r) => (
-                <tr key={r.subject} className="border-b border-border align-top">
-                  <td className="py-2 pr-3 font-medium text-primary">{r.subject}</td>
-                  <td className="py-2 pr-3">{r.nExperimental}</td>
-                  <td className="py-2 pr-3">{r.nComparison}</td>
-                  <td className="py-2 pr-3">{r.meanExperimental}%</td>
-                  <td className="py-2 pr-3">{r.meanComparison}%</td>
-                  <td className="py-2 pr-3">{r.tValue}</td>
-                  <td className="py-2 pr-3">{r.degreesOfFreedom}</td>
-                  <td className="py-2 pr-3">{r.pValue}</td>
-                  <td className="py-2 pr-3">{r.decision}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-3 space-y-1.5">
-            {tTestResults.map((r) => (
-              <p key={`${r.subject}-interp`} className="text-xs leading-relaxed text-slate-600">
-                {r.interpretation}
-              </p>
-            ))}
-          </div>
+          <h3 className="mb-2 text-sm font-semibold text-primary">3. Descriptive Statistics</h3>
+          <DescriptiveStatsTable stats={descriptiveStats} />
         </section>
+
+        <section>
+          <h3 className="mb-2 text-sm font-semibold text-primary">4. Pearson Product-Moment Correlation</h3>
+          <PearsonAnalysis rows={rows} results={pearsonResults} mode={mode} meta={meta} />
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-sm font-semibold text-primary">5. Paired Samples T-Test</h3>
+          <PairedTTestAnalysis result={pairedResult} meta={meta} />
+        </section>
+
+        <footer className="border-t border-border pt-3 text-[11px] text-slate-400">
+          Significance level α = 0.05. Temperature and noise values are the average of each assessment&apos;s
+          1-minute environmental readings; scores are the {meta.label.toLowerCase()} entered for each assessment.
+        </footer>
       </div>
     </div>
   );

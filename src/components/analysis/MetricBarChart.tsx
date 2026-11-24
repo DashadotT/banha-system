@@ -1,21 +1,23 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fitDomain } from '../../utils/chartScale';
-import type { EnvironmentalStatus } from '../../types';
+import type { EnvLevel } from '../../utils/calculations';
 
-const STATUS_COLOR: Record<EnvironmentalStatus, string> = {
-  Normal: '#10B981',
-  Moderate: '#F59E0B',
-  Poor: '#F43F5E',
+const LEVEL_COLOR: Record<EnvLevel, string> = {
+  good: '#10B981',
+  fair: '#F59E0B',
+  poor: '#F43F5E',
 };
 
 export interface MetricBarDatum {
   label: string;
   value: number;
   n: number;
-  status: EnvironmentalStatus;
+  level: EnvLevel;
+  /** Wording of the classification (e.g. Optimal, Moderate, High). */
+  status: string;
 }
 
-/** Bars coloured by the study's Normal / Moderate / Poor ranges. Bars start at zero. */
+/** Bars coloured by the study's classification ranges. Bars start at zero. */
 export function MetricBarChart({
   data,
   unit,
@@ -69,7 +71,7 @@ export function MetricBarChart({
         />
         <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
           {data.map((d) => (
-            <Cell key={d.label} fill={STATUS_COLOR[d.status]} />
+            <Cell key={d.label} fill={LEVEL_COLOR[d.level]} />
           ))}
         </Bar>
       </BarChart>

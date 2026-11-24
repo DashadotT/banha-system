@@ -176,7 +176,21 @@ export interface ActivityLogEntry {
 // Environmental status thresholds (used across Dashboard / Live Monitoring)
 // ---------------------------------------------------------------------------
 
-export type EnvironmentalStatus = 'Normal' | 'Moderate' | 'Poor';
+/**
+ * Wording of an environmental classification.
+ *   Temperature: Optimal / Neutral / Poor
+ *   Noise:       Normal / Moderate / High
+ *   Combined:    Good / Fair / Poor
+ */
+export type EnvironmentalStatus =
+  | 'Optimal'
+  | 'Neutral'
+  | 'Normal'
+  | 'Moderate'
+  | 'High'
+  | 'Good'
+  | 'Fair'
+  | 'Poor';
 
 export interface EnvironmentalSnapshot {
   temperature: number | null;

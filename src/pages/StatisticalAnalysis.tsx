@@ -1,32 +1,34 @@
 import { useMemo, useState } from 'react';
-import { Activity, BarChart3, DoorOpen, FileText, LineChart, SquareStack } from 'lucide-react';
+import { Activity, BarChart3, DoorOpen, FileText, SquareStack } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card, CardHeader } from '../components/common/Card';
 import { FormField, Input, Select } from '../components/common/FormField';
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States';
 import { Tabs } from '../components/common/Tabs';
 import { ExplainerButton } from '../components/common/ExplainerButton';
-import { PearsonResultsTable } from '../components/analysis/PearsonResultsTable';
-import { TTestResultsTable } from '../components/analysis/TTestResultsTable';
+import { PearsonAnalysis } from '../components/analysis/PearsonAnalysis';
+import { PairedTTestAnalysis } from '../components/analysis/PairedTTestAnalysis';
 import { DescriptiveStatsTable } from '../components/analysis/DescriptiveStatsTable';
-import { CorrelationScatter } from '../components/analysis/CorrelationScatter';
-import { GroupMeansBarChart } from '../components/analysis/GroupMeansBarChart';
 import { ClassroomConditions } from '../components/analysis/ClassroomConditions';
 import { AnalysisReport } from '../components/analysis/AnalysisReport';
 import { useAsync } from '../hooks/useAsync';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import {
   fetchAnalysisDataset,
+  runPairedTTest,
   runPearsonCorrelations,
-  runTTestsBySubject,
+  scoredRows,
 } from '../services/analysisService';
+import { useScoreMode } from '../context/ScoreModeContext';
+import { getScoreValue } from '../utils/scoreMode';
 import { fetchSettingOptions } from '../services/settingsService';
 import { computeDescriptiveStats } from '../utils/statistics';
 import type { GroupType } from '../types';
 
-type TabId = 'descriptive' | 'pearson' | 'ttest' | 'graphs' | 'classroom' | 'report';
+type TabId = 'descriptive' | 'pearson' | 'ttest' | 'classroom' | 'report';
 
 export default function StatisticalAnalysis() {
+  const { mode, meta } = useScoreMode();
   const [activeTab, setActiveTab] = useState<TabId>('descriptive');
   const [subject, setSubject] = useState('');
   const [assessmentType, setAssessmentType] = useState('');
@@ -56,8 +58,10 @@ export default function StatisticalAnalysis() {
     [rows]
   );
 
-  const pearsonResults = useMemo(() => (rows ? runPearsonCorrelations(rows) : []), [rows]);
-  const tTestResults = useMemo(() => (rows ? runTTestsBySubject(rows) : []), [rows]);
+  const pearsonResults = useMemo(() => (rows ? runPearsonCorrelations(rows, mode) : []), [rows, mode]);
+  // One overall result: every matched pair of the filtered dataset (all subjects pooled),
+  // or just the selected subject's pairs when a Subject filter is applied.
+  const pairedResult = useMemo(() => runPairedTTest(rows ?? [], mode, subject || undefined), [rows, mode, subject]);
   const descriptiveStats = useMemo(() => {
     if (!rows) return [];
     return [
@@ -72,14 +76,12 @@ export default function StatisticalAnalysis() {
         rows.filter((r) => r.avgNoise !== null).map((r) => r.avgNoise as number)
       ),
       computeDescriptiveStats(
-        'Score Percentage',
-        '%',
-        rows
-          .filter((r) => r.assessment.score_percentage !== null)
-          .map((r) => r.assessment.score_percentage as number)
+        meta.label,
+        meta.unit,
+        scoredRows(rows, mode).map((r) => getScoreValue(r.assessment, mode) as number)
       ),
     ];
-  }, [rows]);
+  }, [rows, mode, meta]);
 
   const filterSummary = [
     subject ? `Subject: ${subject}` : 'All subjects',
@@ -91,7 +93,10 @@ export default function StatisticalAnalysis() {
   return (
     <AppLayout title="Statistical Analysis">
       <Card className="mb-6 print:hidden">
-        <CardHeader title="Dataset Filters" subtitle="Only assessments added to the Assessments page are analyzed" />
+        <CardHeader
+          title="Dataset Filters"
+          subtitle={`Only assessments added to the Assessments page are analyzed · Using ${meta.label} (change in System Settings)`}
+        />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <FormField label="Subject">
             <Select value={subject} onChange={(e) => setSubject(e.target.value)}>
@@ -157,8 +162,7 @@ export default function StatisticalAnalysis() {
                 tabs={[
                   { id: 'descriptive', label: 'Descriptive Statistics', icon: <SquareStack size={15} /> },
                   { id: 'pearson', label: 'Pearson Correlation', icon: <Activity size={15} /> },
-                  { id: 'ttest', label: 'T-Test', icon: <BarChart3 size={15} /> },
-                  { id: 'graphs', label: 'Graphs & Plots', icon: <LineChart size={15} /> },
+                  { id: 'ttest', label: 'Paired T-Test', icon: <BarChart3 size={15} /> },
                   { id: 'classroom', label: 'Classroom Conditions', icon: <DoorOpen size={15} /> },
                   { id: 'report', label: 'Generate Report', icon: <FileText size={15} /> },
                 ]}
@@ -195,7 +199,7 @@ export default function StatisticalAnalysis() {
                       </ul>
                       <p>
                         Temperature and Noise are the per-recording averages already computed from
-                        each recording's 1-minute environmental packets. Score Percentage comes directly from
+                        each recording's 1-minute environmental packets. {meta.label} comes directly from
                         each assessment record.
                       </p>
                     </ExplainerButton>
@@ -211,7 +215,7 @@ export default function StatisticalAnalysis() {
                       <p>
                         Pearson's r measures the strength and direction of a straight-line relationship
                         between two variables — here, an environmental variable (Temperature or
-                        Noise) and Score Percentage.
+                        Noise) and the {meta.label}.
                       </p>
                       <p>
                         For each pair of variables, r is computed from the covariance of the two variables
@@ -227,106 +231,45 @@ export default function StatisticalAnalysis() {
                       <p>
                         Only non-archived assessments matching the current filters, and only records with
                         an available reading for that variable, are included in each calculation — so the
-                        sample size (n) can differ slightly between the three correlations.
+                        sample size (n) can differ slightly between the two correlations.
+                      </p>
+                      <p>
+                        Each scatter plot shows one point per assessment with the least-squares trend
+                        line through them; r² is the share of the score&apos;s variation explained by the
+                        environmental variable.
                       </p>
                     </ExplainerButton>
                   </div>
-                  <PearsonResultsTable results={pearsonResults} />
+                  <PearsonAnalysis rows={rows} results={pearsonResults} mode={mode} meta={meta} />
                 </div>
               )}
 
               {activeTab === 'ttest' && (
                 <div className="space-y-3">
                   <div className="flex justify-end">
-                    <ExplainerButton title="How the Independent Samples T-Test is calculated">
+                    <ExplainerButton title="How the Paired Samples T-Test is calculated">
                       <p>
-                        For each subject in the filtered dataset, assessment records are split into the
-                        Experimental group and the Comparison group by their Score Percentage.
+                        Each Experimental assessment is matched with the Comparison assessment that has the
+                        same <strong>Subject, Assessment Type and Assessment Number</strong>. Every matched
+                        pair gives one difference: Experimental {meta.label} − Comparison {meta.label}. If a
+                        group has more than one assessment for the same match (for example two sections),
+                        their scores are averaged first so each pair counts once.
                       </p>
                       <p>
-                        This is a Welch's t-test, which does not assume the two groups have equal
-                        variance — a safer default for real classroom data. It computes the difference
-                        between the two group means, divided by the standard error of that difference, to
-                        get the t-value. Degrees of freedom are estimated with the Welch–Satterthwaite
-                        equation rather than assumed to be n₁ + n₂ − 2.
+                        The test then asks whether the <strong>mean of those differences</strong> is
+                        different from zero: t = mean difference ÷ (SD of differences ÷ √n), with n − 1
+                        degrees of freedom, where n is the number of pairs. The p-value is compared with
+                        α = 0.05; if p &lt; 0.05 the null hypothesis (no difference between the groups) is
+                        rejected.
                       </p>
                       <p>
-                        The resulting p-value is compared against α = 0.05. If p &lt; 0.05, the null
-                        hypothesis (that the two group means are equal) is rejected, meaning the difference
-                        between groups is unlikely to be due to chance alone.
-                      </p>
-                      <p>
-                        Each subject is tested independently — results from different subjects are never
-                        combined into a single t-test.
-                      </p>
-                    </ExplainerButton>
-                  </div>
-                  <TTestResultsTable results={tTestResults} />
-                </div>
-              )}
-
-              {activeTab === 'graphs' && (
-                <div className="space-y-6">
-                  <div className="flex justify-end">
-                    <ExplainerButton title="How to read these graphs">
-                      <p>
-                        <strong>Scatter plots</strong> place one point per assessment record: its
-                        environmental variable (Temperature or Noise) on the x-axis, and its Score
-                        Percentage on the y-axis. A downward-sloping cluster suggests a negative
-                        relationship; an upward-sloping cluster suggests a positive one. A shapeless cloud
-                        suggests little to no linear relationship — this is the visual counterpart to the
-                        Pearson Correlation tab.
-                      </p>
-                      <p>
-                        <strong>The bar chart</strong> shows the mean Score Percentage for the Experimental
-                        and Comparison groups, grouped by subject — the same means used in the T-Test tab,
-                        shown side by side for a quick visual comparison.
+                        With <strong>All subjects</strong> selected, the pairs of every subject are combined
+                        into one overall result. Choose a Subject in the filters to see that subject on its
+                        own. Assessments without a partner in the other group are left out.
                       </p>
                     </ExplainerButton>
                   </div>
-                  <Card>
-                    <CardHeader
-                      title="Environmental Variables vs. Score Percentage"
-                      subtitle="Each point is one assessment record"
-                    />
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                      <div>
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          Temperature (°C)
-                        </p>
-                        <CorrelationScatter
-                          data={rows
-                            .filter((r) => r.avgTemperature !== null)
-                            .filter((r) => r.assessment.score_percentage !== null)
-                            .map((r) => ({ x: r.avgTemperature as number, y: r.assessment.score_percentage as number }))}
-                          xLabel="Temperature (°C)"
-                          color="#678EC4"
-                        />
-                      </div>
-                      <div>
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          Noise (dBA)
-                        </p>
-                        <CorrelationScatter
-                          data={rows
-                            .filter((r) => r.avgNoise !== null)
-                            .filter((r) => r.assessment.score_percentage !== null)
-                            .map((r) => ({ x: r.avgNoise as number, y: r.assessment.score_percentage as number }))}
-                          xLabel="Noise (dBA)"
-                          color="#DEAE20"
-                        />
-                      </div>
-                    </div>
-                  </Card>
-
-                  <Card>
-                    <CardHeader
-                      title="Experimental vs. Comparison — Mean Score Percentage"
-                      subtitle="Grouped by subject"
-                    />
-                    <GroupMeansBarChart results={tTestResults} />
-                  </Card>
-
+                  <PairedTTestAnalysis result={pairedResult} meta={meta} />
                 </div>
               )}
 
@@ -341,8 +284,9 @@ export default function StatisticalAnalysis() {
                       </p>
                       <p>
                         A classroom's average is the mean of its assessments' values, then compared with the
-                        study's Normal / Moderate / Poor ranges. Classrooms are flagged when at least half of
-                        their assessments fell in the Moderate or Poor range (minimum two assessments).
+                        study's temperature and noise ranges (Good / Fair / Poor overall, where the worse of the two
+                        readings decides). Classrooms are flagged when at least half of their assessments
+                        fell in the Fair or Poor range (minimum two assessments).
                       </p>
                       <p>The Group and date filters above apply here too.</p>
                     </ExplainerButton>
@@ -356,28 +300,25 @@ export default function StatisticalAnalysis() {
                   <div className="flex justify-end">
                     <ExplainerButton title="About this report">
                       <p>
-                        This report summarizes the Pearson Correlation and T-Test results for the current
-                        filter selection, ready to print or save as a PDF.
+                        The report gathers the <strong>overall results</strong> for the current filters —
+                        descriptive statistics, the Pearson correlation (with scatter plots) and the paired
+                        samples t-test (with its charts) — in one document that is ready to print or save as a
+                        PDF.
                       </p>
                       <p>
-                        <strong>Export Raw Data (CSV)</strong> downloads exactly the filtered
-                        assessment-and-environmental dataset used to produce the results above — one row
-                        per assessment, joined with its recording's average Temperature and Noise.
-                      </p>
-                      <p>
-                        <strong>Export All Recordings (CSV)</strong> downloads every non-archived
-                        recording within the selected date range — including recordings that don't yet
-                        have assessment details attached — with timing and environmental averages.
+                        It uses the {meta.label} setting from System Settings, so the figures match what you
+                        see in the other tabs.
                       </p>
                     </ExplainerButton>
                   </div>
                   <AnalysisReport
                     rows={rows}
+                    descriptiveStats={descriptiveStats}
                     pearsonResults={pearsonResults}
-                    tTestResults={tTestResults}
+                    pairedResult={pairedResult}
+                    mode={mode}
+                    meta={meta}
                     filterSummary={filterSummary}
-                    dateFrom={dateFrom}
-                    dateTo={dateTo}
                   />
                 </div>
               )}

@@ -92,7 +92,7 @@ src/
 │   ├── charts/         Recharts trend chart
 │   ├── recordings/     Recording status badge
 │   ├── assessments/    Assessment entry form
-│   ├── analysis/       Pearson & t-test tables, scatter/bar charts, printable report
+│   ├── analysis/       Pearson & paired t-test analysis, charts, printable report
 │   ├── settings/        Configurable option-list manager (Subjects/Sections/Types)
 │   ├── auth/            ProtectedRoute
 │   └── common/          Button, Card, Badge, Modal, Table, FormField, Tabs, States
@@ -111,15 +111,16 @@ src/
 - **Tables scroll instead of growing indefinitely.** Recordings, Assessments, and Archived Records cap at roughly 10 visible rows with a sticky header, scrolling for the rest. Use the **Sort** control on each page (date/status/duration for Recordings; date/section/group/number for Assessments) to find what you need quickly.
 - **The Assessment form warns about unsaved edits** and won't let Enter-key presses in a field silently submit the form — only the explicit Save button does.
 - **Pages update live, not just on refresh.** Dashboard, Recordings, Assessments, Statistical Analysis, Archived Records, Recording Details, and the Settings option lists all subscribe to Supabase Realtime (`src/hooks/useRealtimeRefresh.ts`) and refetch automatically when the underlying data changes — including changes made by Node 2 directly.
-- **Environmental status thresholds are explained in-app.** Every Temperature/Noise value is classified Normal/Moderate/Poor (see `src/utils/calculations.ts` for the exact numbers), and an **Info ("Status guide")** button next to these values opens a plain-language explanation of the thresholds.
+- **Environmental status thresholds are explained in-app.** Temperature is classified Optimal (24–26 °C) / Neutral (27–30 °C) / Poor (below 24 or above 30 °C), and Acoustic Noise Normal (≤ 55 dBA) / Moderate (56–65 dBA) / High (> 65 dBA). Readings are classified by their whole-number part, so 26.9 °C is still Optimal and 55.9 dBA is still Normal. The ranges live in one place (`src/utils/calculations.ts`) and are shown in the **Status guide** pop-up and in **System Settings**.
 - **Activity Log** on the Dashboard shows a running feed of research-data actions — recording start/stop, archive/restore/delete, assessment changes, settings changes, account renames — populated automatically by database triggers (`supabase/02_activity_log.sql`), so it captures actions from Node 2 as well as the web app. Page navigation is never logged.
 - **12-hour time format everywhere**, via the shared utilities in `src/utils/dateTime.ts`.
 - **Live Monitoring** is wired for Supabase Realtime — it subscribes to `INSERT` events on `environmental_readings` and status changes on `recordings`, so a device sending `START` / `DATA` / `STOP` packets updates the UI without a page refresh. The Dashboard also falls back to showing the previous recording's last known values (clearly labeled) while a new recording is waiting for its first packet, rather than going blank.
-- **Statistics are computed, not hardcoded.** `src/utils/statistics.ts` implements Pearson's r with a real Student's t-distribution p-value (incomplete beta function) and an independent-samples (Welch's) t-test, both driven entirely by the filtered, non-archived dataset.
+- **Statistics are computed, not hardcoded.** `src/utils/statistics.ts` implements Pearson's r (with a Student's t-distribution p-value via the incomplete beta function) and a paired-samples t-test (t, df, p, 95% CI and Cohen's dz), both driven entirely by the filtered, non-archived dataset.
 - **No mock data.** Every page fetches from Supabase through the `services/` layer; pages show loading, error, and empty states while data is unavailable.
 - **Subjects, Sections, and Assessment Types are configurable**, not hardcoded. They live in the `settings_options` table and are managed from the **System Settings** page — with inline rename and **archive-only removal** (never a hard delete), so historical assessments that reference a value are never orphaned. Archived options can be restored at any time.
 - **One assessment per recording**, editable after the fact. Adding assessment details is guarded against duplicate/rapid-click submissions, and an **Edit** button on Recording Details lets researchers correct details later without creating a second record.
-- **Statistical Analysis** includes Descriptive Statistics, Pearson Correlation, T-Test, Graphs & Plots, and a Generate Report tab — each with a "How is this calculated?" explainer, and the report tab can export the filtered dataset or all recordings (with current filters applied) as CSV.
+- **Statistical Analysis** has Descriptive Statistics, Pearson Correlation (coefficient chart plus a scatter plot with trend line for Temperature and Noise), a Paired T-Test (summary plus mean, per-pair and difference charts), Classroom Conditions, and Generate Report. The paired t-test matches each Experimental assessment with the Comparison assessment of the same Subject, Assessment Type and Assessment Number; with **All subjects** selected, all pairs are pooled into one overall result. **Generate Report** prints (or saves as PDF) the overall results and their figures — there are no CSV exports in the report.
+- **Score Percentage or Average Score.** System Settings lets you choose which score the Assessments table and every Statistical Analysis calculation, chart and report uses. The choice is stored in the browser (`localStorage`, key `banha:score-mode`), so it needs no database migration and applies per browser/device.
 
 ## Notes for Going Live
 

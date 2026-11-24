@@ -1,6 +1,7 @@
-import { overallEnvironmentalStatus, round } from './calculations';
+import { overallEnvironmentalLevel, round } from './calculations';
+import type { EnvLevel } from './calculations';
 import type { AnalysisRow } from '../services/analysisService';
-import type { EnvironmentalStatus, Recording } from '../types';
+import type { Recording } from '../types';
 
 export interface ConditionSummary {
   label: string;
@@ -9,16 +10,17 @@ export interface ConditionSummary {
   recordings: number;
   avgTemperature: number | null;
   avgNoise: number | null;
-  /** Share (0–1) of observations whose overall status was Moderate or Poor. */
+  /** Share (0–1) of observations whose overall level was Fair or Poor. */
   nonNormalShare: number;
-  moderateCount: number;
+  /** Observations whose combined temperature/noise level was Fair. */
+  fairCount: number;
   poorCount: number;
-  status: EnvironmentalStatus;
+  level: EnvLevel;
 }
 
 /** Minimum assessments before a classroom can be flagged as "frequently" poor. */
 export const MIN_ASSESSMENTS_FOR_FLAG = 2;
-/** Share of assessments in Moderate/Poor at/above which a classroom is flagged. */
+/** Share of assessments in Fair/Poor at/above which a classroom is flagged. */
 export const FLAG_SHARE = 0.5;
 
 /** One assessment's readings in one classroom / schedule, pooled from raw readings. */
@@ -63,12 +65,12 @@ function summarize(label: string, list: Observation[]): ConditionSummary {
   const avgTemperature = temps.length ? round(mean(temps), 1) : null;
   const avgNoise = noises.length ? round(mean(noises), 1) : null;
 
-  let moderate = 0;
+  let fair = 0;
   let poor = 0;
   for (const o of measured) {
-    const s = overallEnvironmentalStatus(o.avgTemperature, o.avgNoise);
-    if (s === 'Moderate') moderate += 1;
-    if (s === 'Poor') poor += 1;
+    const l = overallEnvironmentalLevel(o.avgTemperature, o.avgNoise);
+    if (l === 'fair') fair += 1;
+    if (l === 'poor') poor += 1;
   }
   return {
     label,
@@ -76,10 +78,10 @@ function summarize(label: string, list: Observation[]): ConditionSummary {
     recordings: list.reduce((n, o) => n + o.recordings, 0),
     avgTemperature,
     avgNoise,
-    nonNormalShare: measured.length ? (moderate + poor) / measured.length : 0,
-    moderateCount: moderate,
+    nonNormalShare: measured.length ? (fair + poor) / measured.length : 0,
+    fairCount: fair,
     poorCount: poor,
-    status: overallEnvironmentalStatus(avgTemperature, avgNoise),
+    level: overallEnvironmentalLevel(avgTemperature, avgNoise),
   };
 }
 

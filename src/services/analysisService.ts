@@ -1,8 +1,17 @@
 import { supabase } from './supabase';
-import { computeIndependentTTest, computePearson } from '../utils/statistics';
+import { computePairedTTest, computePearson } from '../utils/statistics';
+import { SCORE_MODE_META, getScoreValue, type ScoreMode } from '../utils/scoreMode';
 import { max, mean, min, round } from '../utils/calculations';
 import { fetchActiveAssessments } from './assessmentService';
-import type { Assessment, DateRange, GroupType, PearsonResult, Recording, TTestResult } from '../types';
+import type {
+  Assessment,
+  DateRange,
+  GroupType,
+  PairedObservation,
+  PairedTTestResult,
+  PearsonResult,
+  Recording,
+} from '../types';
 
 interface ReadingPoint {
   recording_id: string;
@@ -150,46 +159,87 @@ export async function fetchAnalysisDataset(filters: AnalysisFilters = {}): Promi
   });
 }
 
+/** Rows that have a score under the chosen score mode. */
+export function scoredRows(rows: AnalysisRow[], mode: ScoreMode): AnalysisRow[] {
+  return rows.filter((r) => getScoreValue(r.assessment, mode) !== null);
+}
+
 /**
- * Pearson correlations (Temperature, Noise vs Score %) over the given rows.
- * Rows missing either value are skipped for that correlation.
+ * Pearson correlations (Temperature, Noise vs the chosen score) over the
+ * given rows. Rows missing either value are skipped for that correlation.
  */
-export function runPearsonCorrelations(rows: AnalysisRow[]): PearsonResult[] {
-  const scored = rows.filter((r) => r.assessment.score_percentage !== null);
+export function runPearsonCorrelations(rows: AnalysisRow[], mode: ScoreMode): PearsonResult[] {
+  const scoreLabel = SCORE_MODE_META[mode].label;
+  const scored = scoredRows(rows, mode);
   const tempPairs = scored.filter((r) => r.avgTemperature !== null);
   const noisePairs = scored.filter((r) => r.avgNoise !== null);
+  const score = (r: AnalysisRow) => getScoreValue(r.assessment, mode) as number;
 
   return [
-    computePearson(
-      'Temperature',
-      'Score Percentage',
-      tempPairs.map((r) => r.avgTemperature as number),
-      tempPairs.map((r) => r.assessment.score_percentage as number)
-    ),
-    computePearson(
-      'Noise Level',
-      'Score Percentage',
-      noisePairs.map((r) => r.avgNoise as number),
-      noisePairs.map((r) => r.assessment.score_percentage as number)
-    ),
+    computePearson('Temperature', scoreLabel, tempPairs.map((r) => r.avgTemperature as number), tempPairs.map(score)),
+    computePearson('Noise Level', scoreLabel, noisePairs.map((r) => r.avgNoise as number), noisePairs.map(score)),
   ];
 }
 
 /**
- * Independent-samples t-test per subject, Experimental vs Comparison.
- * Only assessments with a subject, group and score percentage take part.
+ * Builds the matched Experimental / Comparison pairs used by the paired
+ * t-test. Two assessments are a pair when they share the same Subject,
+ * Assessment Type and Assessment Number but belong to opposite groups. If a
+ * group has several assessments for that key (e.g. more than one section),
+ * their scores are averaged so each pair counts once.
  */
-export function runTTestsBySubject(rows: AnalysisRow[]): TTestResult[] {
-  const eligible = rows.filter(
-    (r) => r.assessment.subject && r.assessment.group_type && r.assessment.score_percentage !== null
+export function buildPairs(rows: AnalysisRow[], mode: ScoreMode): { pairs: PairedObservation[]; unmatched: number } {
+  const eligible = scoredRows(rows, mode).filter(
+    (r) =>
+      r.assessment.subject &&
+      r.assessment.group_type &&
+      r.assessment.assessment_type &&
+      r.assessment.assessment_number !== null
   );
-  const subjects = Array.from(new Set(eligible.map((r) => r.assessment.subject as string))).sort();
-  return subjects.map((subject) => {
-    const subjectRows = eligible.filter((r) => r.assessment.subject === subject);
-    const scores = (g: GroupType) =>
-      subjectRows
-        .filter((r) => r.assessment.group_type === g)
-        .map((r) => r.assessment.score_percentage as number);
-    return computeIndependentTTest(subject, scores('Experimental'), scores('Comparison'));
-  });
+
+  const buckets = new Map<string, { subject: string; label: string; exp: number[]; comp: number[] }>();
+  for (const r of eligible) {
+    const a = r.assessment;
+    const key = [a.subject, a.assessment_type, a.assessment_number].join('|').toLowerCase();
+    const bucket = buckets.get(key) ?? {
+      subject: a.subject as string,
+      label: `${a.subject} — ${a.assessment_type} #${a.assessment_number}`,
+      exp: [],
+      comp: [],
+    };
+    (a.group_type === 'Experimental' ? bucket.exp : bucket.comp).push(getScoreValue(a, mode) as number);
+    buckets.set(key, bucket);
+  }
+
+  const avg = (v: number[]) => v.reduce((x, y) => x + y, 0) / v.length;
+  const pairs: PairedObservation[] = [];
+  let unmatched = 0;
+  for (const b of buckets.values()) {
+    if (b.exp.length && b.comp.length) {
+      const experimental = avg(b.exp);
+      const comparison = avg(b.comp);
+      pairs.push({
+        label: b.label,
+        subject: b.subject,
+        experimental: round(experimental, 2),
+        comparison: round(comparison, 2),
+        difference: round(experimental - comparison, 2),
+      });
+    } else {
+      unmatched += b.exp.length + b.comp.length;
+    }
+  }
+  pairs.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+  return { pairs, unmatched };
+}
+
+/**
+ * Paired-samples t-test, Experimental vs Comparison, on the whole filtered
+ * dataset. With "All subjects" selected every matched pair from every subject
+ * goes into ONE overall result; with a single subject selected it is that
+ * subject's result.
+ */
+export function runPairedTTest(rows: AnalysisRow[], mode: ScoreMode, subject?: string): PairedTTestResult {
+  const { pairs, unmatched } = buildPairs(rows, mode);
+  return computePairedTTest(subject ? subject : 'Overall (All Subjects)', pairs, unmatched);
 }

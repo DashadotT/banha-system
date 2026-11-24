@@ -24,20 +24,47 @@ export interface PearsonResult {
   pValue: number;
   significant: boolean;
   interpretation: string;
+  /** Coefficient of determination (r²). */
+  rSquared: number;
 }
 
-export interface TTestResult {
+/** One matched Experimental / Comparison pair (same subject, assessment type and number). */
+export interface PairedObservation {
+  /** e.g. "Mathematics — Quiz #2" */
+  label: string;
   subject: string;
-  nExperimental: number;
-  nComparison: number;
+  experimental: number;
+  comparison: number;
+  /** experimental − comparison */
+  difference: number;
+}
+
+export interface PairedTTestResult {
+  /** "Overall (All Subjects)" or the selected subject. */
+  label: string;
+  /** Number of matched pairs (the sample size n of the test). */
+  nPairs: number;
+  /** Experimental / Comparison assessments that had no partner and were left out. */
+  unmatched: number;
   meanExperimental: number;
   meanComparison: number;
+  sdExperimental: number;
+  sdComparison: number;
+  meanDifference: number;
+  sdDifference: number;
+  standardError: number;
   tValue: number;
   degreesOfFreedom: number;
   pValue: number;
+  /** 95% confidence interval of the mean difference. */
+  ciLower: number;
+  ciUpper: number;
+  /** Cohen's dz — mean difference ÷ SD of the differences. */
+  effectSize: number;
   significant: boolean;
   decision: string;
   interpretation: string;
+  pairs: PairedObservation[];
 }
 
 export interface DescriptiveStats {

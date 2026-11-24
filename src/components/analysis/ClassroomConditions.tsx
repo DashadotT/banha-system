@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardHeader } from '../common/Card';
-import { Badge, statusToTone } from '../common/Badge';
+import { Badge, levelToTone } from '../common/Badge';
 import { EnvValue } from '../common/EnvValue';
 import { EmptyState } from '../common/States';
 import { Td, Th, TableShell } from '../common/Table';
@@ -14,7 +14,13 @@ import {
   isFlagged,
   type ConditionSummary,
 } from '../../utils/classroomAnalytics';
-import { getNoiseStatus, getTemperatureStatus } from '../../utils/calculations';
+import {
+  OVERALL_LABELS,
+  getNoiseLevel,
+  getNoiseStatus,
+  getTemperatureLevel,
+  getTemperatureStatus,
+} from '../../utils/calculations';
 import type { AnalysisRow } from '../../services/analysisService';
 
 function SummaryTable({ title, rows }: { title: string; rows: ConditionSummary[] }) {
@@ -27,7 +33,7 @@ function SummaryTable({ title, rows }: { title: string; rows: ConditionSummary[]
           <Th>Recordings</Th>
           <Th>Avg Temp</Th>
           <Th>Avg Noise</Th>
-          <Th>Moderate / Poor</Th>
+          <Th>Fair / Poor</Th>
           <Th>Overall</Th>
         </tr>
       </thead>
@@ -37,7 +43,7 @@ function SummaryTable({ title, rows }: { title: string; rows: ConditionSummary[]
             <Td className="font-medium text-primary">
               <span className="inline-flex items-center gap-1.5">
                 {r.label}
-                {isFlagged(r) && <AlertTriangle size={13} className="text-rose-500" aria-label="Frequently moderate or poor" />}
+                {isFlagged(r) && <AlertTriangle size={13} className="text-rose-500" aria-label="Frequently fair or poor" />}
               </span>
             </Td>
             <Td className="mono-num">{r.assessments}</Td>
@@ -49,10 +55,10 @@ function SummaryTable({ title, rows }: { title: string; rows: ConditionSummary[]
               <EnvValue metric="noise" value={r.avgNoise} unit="dBA" />
             </Td>
             <Td className="mono-num">
-              {r.moderateCount + r.poorCount} of {r.assessments} ({Math.round(r.nonNormalShare * 100)}%)
+              {r.fairCount + r.poorCount} of {r.assessments} ({Math.round(r.nonNormalShare * 100)}%)
             </Td>
             <Td>
-              <Badge tone={statusToTone(r.status)}>{r.status}</Badge>
+              <Badge tone={levelToTone(r.level)}>{OVERALL_LABELS[r.level]}</Badge>
             </Td>
           </tr>
         ))}
@@ -70,6 +76,7 @@ const toBars = (rows: ConditionSummary[], metric: 'temperature' | 'noise') =>
         label: r.label,
         value,
         n: r.assessments,
+        level: metric === 'temperature' ? getTemperatureLevel(value) : getNoiseLevel(value),
         status: metric === 'temperature' ? getTemperatureStatus(value) : getNoiseStatus(value),
       };
     });
@@ -107,7 +114,7 @@ export function ClassroomConditions({ rows }: { rows: AnalysisRow[] }) {
           <Card>
             <CardHeader
               title="Conditions by Classroom / Room Type"
-              subtitle="Average of each classroom's assessments, coloured by Normal / Moderate / Poor range"
+              subtitle="Average of each classroom's assessments, coloured by the study's temperature and noise ranges"
             />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div>
@@ -126,8 +133,8 @@ export function ClassroomConditions({ rows }: { rows: AnalysisRow[] }) {
 
           <Card>
             <CardHeader
-              title="Classrooms with Frequent Moderate or Poor Conditions"
-              subtitle={`Flagged when at least ${Math.round(FLAG_SHARE * 100)}% of a classroom's assessments were Moderate or Poor (minimum ${MIN_ASSESSMENTS_FOR_FLAG} assessments)`}
+              title="Classrooms with Frequent Fair or Poor Conditions"
+              subtitle={`Flagged when at least ${Math.round(FLAG_SHARE * 100)}% of a classroom's assessments were Fair or Poor (minimum ${MIN_ASSESSMENTS_FOR_FLAG} assessments)`}
             />
             {flagged.length === 0 ? (
               <p className="text-sm text-slate-500">
@@ -145,7 +152,7 @@ export function ClassroomConditions({ rows }: { rows: AnalysisRow[] }) {
                       {c.label}
                     </span>
                     <span className="text-xs text-slate-600">
-                      {c.moderateCount} moderate · {c.poorCount} poor of {c.assessments} assessments (
+                      {c.fairCount} fair · {c.poorCount} poor of {c.assessments} assessments (
                       {Math.round(c.nonNormalShare * 100)}%)
                     </span>
                   </li>
@@ -205,7 +212,7 @@ export function ClassroomConditions({ rows }: { rows: AnalysisRow[] }) {
                       <Td key={s}>
                         {cell ? (
                           <span className="inline-flex items-center gap-2">
-                            <Badge tone={statusToTone(cell.status)}>{cell.status}</Badge>
+                            <Badge tone={levelToTone(cell.level)}>{OVERALL_LABELS[cell.level]}</Badge>
                             <span className="mono-num text-xs text-slate-600">
                               {cell.avgTemperature ?? '—'}°C · {cell.avgNoise ?? '—'} dBA ({cell.assessments})
                             </span>
