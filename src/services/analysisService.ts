@@ -1,16 +1,16 @@
 import { supabase } from './supabase';
-import { computePairedTTest, computePearson } from '../utils/statistics';
+import { computePearson, computeWelchTTest } from '../utils/statistics';
 import { SCORE_MODE_META, getScoreValue, type ScoreMode } from '../utils/scoreMode';
 import { max, mean, min, round } from '../utils/calculations';
 import { fetchActiveAssessments } from './assessmentService';
 import type {
   Assessment,
   DateRange,
+  GroupObservation,
   GroupType,
-  PairedObservation,
-  PairedTTestResult,
   PearsonResult,
   Recording,
+  WelchTTestResult,
 } from '../types';
 
 interface ReadingPoint {
@@ -182,64 +182,34 @@ export function runPearsonCorrelations(rows: AnalysisRow[], mode: ScoreMode): Pe
 }
 
 /**
- * Builds the matched Experimental / Comparison pairs used by the paired
- * t-test. Two assessments are a pair when they share the same Subject,
- * Assessment Type and Assessment Number but belong to opposite groups. If a
- * group has several assessments for that key (e.g. more than one section),
- * their scores are averaged so each pair counts once.
+ * Collects scored Experimental and Comparison assessments from the filtered
+ * dataset and runs Welch's independent-samples t-test. With "All subjects"
+ * selected every eligible assessment goes into one overall test; with a single
+ * subject selected it is that subject's result.
  */
-export function buildPairs(rows: AnalysisRow[], mode: ScoreMode): { pairs: PairedObservation[]; unmatched: number } {
-  const eligible = scoredRows(rows, mode).filter(
-    (r) =>
-      r.assessment.subject &&
-      r.assessment.group_type &&
-      r.assessment.assessment_type &&
-      r.assessment.assessment_number !== null
-  );
+export function runWelchTTest(rows: AnalysisRow[], mode: ScoreMode, subject?: string): WelchTTestResult {
+  const experimental: GroupObservation[] = [];
+  const comparison: GroupObservation[] = [];
 
-  const buckets = new Map<string, { subject: string; label: string; exp: number[]; comp: number[] }>();
-  for (const r of eligible) {
+  for (const r of scoredRows(rows, mode)) {
     const a = r.assessment;
-    const key = [a.subject, a.assessment_type, a.assessment_number].join('|').toLowerCase();
-    const bucket = buckets.get(key) ?? {
-      subject: a.subject as string,
-      label: `${a.subject} — ${a.assessment_type} #${a.assessment_number}`,
-      exp: [],
-      comp: [],
+    if (a.group_type !== 'Experimental' && a.group_type !== 'Comparison') continue;
+    const score = getScoreValue(a, mode) as number;
+    const parts = [
+      a.subject,
+      a.assessment_type,
+      a.assessment_number !== null ? `#${a.assessment_number}` : null,
+      a.section,
+    ].filter(Boolean);
+    const obs: GroupObservation = {
+      label: parts.length > 0 ? parts.join(' · ') : 'Assessment',
+      subject: a.subject ?? 'Unspecified',
+      group: a.group_type,
+      score,
     };
-    (a.group_type === 'Experimental' ? bucket.exp : bucket.comp).push(getScoreValue(a, mode) as number);
-    buckets.set(key, bucket);
+    if (a.group_type === 'Experimental') experimental.push(obs);
+    else comparison.push(obs);
   }
 
-  const avg = (v: number[]) => v.reduce((x, y) => x + y, 0) / v.length;
-  const pairs: PairedObservation[] = [];
-  let unmatched = 0;
-  for (const b of buckets.values()) {
-    if (b.exp.length && b.comp.length) {
-      const experimental = avg(b.exp);
-      const comparison = avg(b.comp);
-      pairs.push({
-        label: b.label,
-        subject: b.subject,
-        experimental: round(experimental, 2),
-        comparison: round(comparison, 2),
-        difference: round(experimental - comparison, 2),
-      });
-    } else {
-      unmatched += b.exp.length + b.comp.length;
-    }
-  }
-  pairs.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
-  return { pairs, unmatched };
-}
-
-/**
- * Paired-samples t-test, Experimental vs Comparison, on the whole filtered
- * dataset. With "All subjects" selected every matched pair from every subject
- * goes into ONE overall result; with a single subject selected it is that
- * subject's result.
- */
-export function runPairedTTest(rows: AnalysisRow[], mode: ScoreMode, subject?: string): PairedTTestResult {
-  const { pairs, unmatched } = buildPairs(rows, mode);
-  return computePairedTTest(subject ? subject : 'Overall (All Subjects)', pairs, unmatched);
+  return computeWelchTTest(subject ? subject : 'Overall (All Subjects)', experimental, comparison);
 }

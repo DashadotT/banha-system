@@ -28,43 +28,41 @@ export interface PearsonResult {
   rSquared: number;
 }
 
-/** One matched Experimental / Comparison pair (same subject, assessment type and number). */
-export interface PairedObservation {
-  /** e.g. "Mathematics — Quiz #2" */
+/** One assessment score observation belonging to the Experimental or Comparison group. */
+export interface GroupObservation {
+  /** e.g. "Mathematics · Quiz · #2 · Section A" */
   label: string;
   subject: string;
-  experimental: number;
-  comparison: number;
-  /** experimental − comparison */
-  difference: number;
+  group: 'Experimental' | 'Comparison';
+  score: number;
 }
 
-export interface PairedTTestResult {
+export interface WelchTTestResult {
   /** "Overall (All Subjects)" or the selected subject. */
   label: string;
-  /** Number of matched pairs (the sample size n of the test). */
-  nPairs: number;
-  /** Experimental / Comparison assessments that had no partner and were left out. */
-  unmatched: number;
+  nExperimental: number;
+  nComparison: number;
   meanExperimental: number;
   meanComparison: number;
   sdExperimental: number;
   sdComparison: number;
+  /** meanExperimental − meanComparison */
   meanDifference: number;
-  sdDifference: number;
   standardError: number;
   tValue: number;
+  /** Welch–Satterthwaite degrees of freedom. */
   degreesOfFreedom: number;
   pValue: number;
-  /** 95% confidence interval of the mean difference. */
+  /** 95% confidence interval of the difference between group means. */
   ciLower: number;
   ciUpper: number;
-  /** Cohen's dz — mean difference ÷ SD of the differences. */
+  /** Cohen's d — standardized mean difference using pooled SD. */
   effectSize: number;
   significant: boolean;
   decision: string;
   interpretation: string;
-  pairs: PairedObservation[];
+  experimentalScores: GroupObservation[];
+  comparisonScores: GroupObservation[];
 }
 
 export interface TTestResult {

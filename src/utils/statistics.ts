@@ -1,4 +1,4 @@
-import type { DescriptiveStats, PairedObservation, PairedTTestResult, PearsonResult } from '../types';
+import type { DescriptiveStats, GroupObservation, PearsonResult, WelchTTestResult } from '../types';
 import { round } from './calculations';
 
 // ---------------------------------------------------------------------------
@@ -190,50 +190,56 @@ export function tCritical(df: number, alpha = 0.05): number {
 }
 
 const mean = (v: number[]) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0);
-const sampleSd = (v: number[]) => {
+const sampleVariance = (v: number[]) => {
   if (v.length < 2) return 0;
   const m = mean(v);
-  return Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1));
+  return v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1);
 };
 
 /**
- * Paired-samples t-test on matched Experimental / Comparison observations.
+ * Welch's independent-samples t-test (unequal variances) comparing
+ * Experimental and Comparison observations.
  *
- *   d  = Experimental − Comparison for each pair
- *   t  = mean(d) ÷ (SD(d) ÷ √n)        with df = n − 1
- *
- * `unmatched` is only reported so the page can say how many assessments had
- * no partner and were therefore left out.
+ *   SE = √(s₁²/n₁ + s₂²/n₂)
+ *   t  = (mean₁ − mean₂) ÷ SE
+ *   df = (v₁ + v₂)² ÷ (v₁²/(n₁ − 1) + v₂²/(n₂ − 1)),  where vᵢ = sᵢ²/nᵢ
  */
-export function computePairedTTest(
+export function computeWelchTTest(
   label: string,
-  pairs: PairedObservation[],
-  unmatched = 0,
+  experimental: GroupObservation[],
+  comparison: GroupObservation[],
   alpha = 0.05
-): PairedTTestResult {
-  const n = pairs.length;
-  const exp = pairs.map((p) => p.experimental);
-  const comp = pairs.map((p) => p.comparison);
-  const diffs = pairs.map((p) => p.difference);
-  const meanDiff = mean(diffs);
-  const sdDiff = sampleSd(diffs);
+): WelchTTestResult {
+  const n1 = experimental.length;
+  const n2 = comparison.length;
+  const expValues = experimental.map((o) => o.score);
+  const compValues = comparison.map((o) => o.score);
+  const mean1 = mean(expValues);
+  const mean2 = mean(compValues);
+  const var1 = sampleVariance(expValues);
+  const var2 = sampleVariance(compValues);
+  const sd1 = Math.sqrt(var1);
+  const sd2 = Math.sqrt(var2);
+  const meanDiff = mean1 - mean2;
+
   const base = {
     label,
-    nPairs: n,
-    unmatched,
-    meanExperimental: round(mean(exp), 2),
-    meanComparison: round(mean(comp), 2),
-    sdExperimental: round(sampleSd(exp), 2),
-    sdComparison: round(sampleSd(comp), 2),
+    nExperimental: n1,
+    nComparison: n2,
+    meanExperimental: round(mean1, 2),
+    meanComparison: round(mean2, 2),
+    sdExperimental: round(sd1, 2),
+    sdComparison: round(sd2, 2),
     meanDifference: round(meanDiff, 2),
-    sdDifference: round(sdDiff, 2),
-    pairs,
+    experimentalScores: experimental,
+    comparisonScores: comparison,
   };
-  const notComputed = (interpretation: string, decision: string): PairedTTestResult => ({
+
+  const notComputed = (interpretation: string, decision: string): WelchTTestResult => ({
     ...base,
     standardError: 0,
     tValue: 0,
-    degreesOfFreedom: Math.max(0, n - 1),
+    degreesOfFreedom: 0,
     pValue: 1,
     ciLower: 0,
     ciUpper: 0,
@@ -243,41 +249,47 @@ export function computePairedTTest(
     interpretation,
   });
 
-  if (n < 2) {
+  if (n1 < 2 || n2 < 2) {
     return notComputed(
-      'Insufficient data: a paired t-test needs at least 2 matched Experimental / Comparison pairs ' +
-        '(same subject, assessment type and assessment number).',
+      "Insufficient data: Welch's t-test needs at least 2 Experimental and 2 Comparison assessments.",
       'Insufficient data'
     );
   }
-  const se = sdDiff / Math.sqrt(n);
+
+  const v1 = var1 / n1;
+  const v2 = var2 / n2;
+  const se = Math.sqrt(v1 + v2);
   if (se === 0) {
     return notComputed(
-      'The t-test could not be computed because every pair has exactly the same difference (no variability).',
+      "Welch's t-test could not be computed because both groups have zero variability (all scores in each group are identical).",
       'Not computable'
     );
   }
 
-  const df = n - 1;
+  const df = (v1 + v2) ** 2 / ((v1 * v1) / (n1 - 1) + (v2 * v2) / (n2 - 1));
   const tValue = meanDiff / se;
   const pValue = tDistributionPValue(Math.abs(tValue), df);
   const significant = pValue < alpha;
   const margin = tCritical(df, alpha) * se;
+  const pooledSd = Math.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2));
+  const effectSize = pooledSd === 0 ? 0 : meanDiff / pooledSd;
+
+  const dfRounded = round(df, 2);
   const direction = meanDiff > 0 ? 'higher' : meanDiff < 0 ? 'lower' : 'equal';
-  const stat = `t(${df}) = ${round(tValue, 3)}, p = ${round(pValue, 4)} ${significant ? '<' : '≥'} ${alpha}`;
+  const stat = `t(${dfRounded}) = ${round(tValue, 3)}, p = ${round(pValue, 4)} ${significant ? '<' : '≥'} ${alpha}`;
   const interpretation = significant
-    ? `Reject the null hypothesis. For ${label}, the Experimental group's scores were significantly ${direction} than the Comparison group's across ${n} matched pairs (${stat}).`
-    : `Fail to reject the null hypothesis. For ${label}, there is no statistically significant difference between the Experimental and Comparison groups across ${n} matched pairs (${stat}).`;
+    ? `Reject the null hypothesis. For ${label}, the Experimental group's scores (M = ${round(mean1, 2)}, n = ${n1}) were significantly ${direction} than the Comparison group's (M = ${round(mean2, 2)}, n = ${n2}) (${stat}).`
+    : `Fail to reject the null hypothesis. For ${label}, there is no statistically significant difference between the Experimental (M = ${round(mean1, 2)}, n = ${n1}) and Comparison (M = ${round(mean2, 2)}, n = ${n2}) groups (${stat}).`;
 
   return {
     ...base,
     standardError: round(se, 3),
     tValue: round(tValue, 3),
-    degreesOfFreedom: df,
+    degreesOfFreedom: dfRounded,
     pValue: round(pValue, 4),
     ciLower: round(meanDiff - margin, 2),
     ciUpper: round(meanDiff + margin, 2),
-    effectSize: round(meanDiff / sdDiff, 3),
+    effectSize: round(effectSize, 3),
     significant,
     decision: significant ? 'Reject the null hypothesis' : 'Fail to reject the null hypothesis',
     interpretation,

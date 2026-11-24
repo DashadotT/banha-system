@@ -3,30 +3,30 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { DescriptiveStatsTable } from './DescriptiveStatsTable';
 import { PearsonAnalysis } from './PearsonAnalysis';
-import { PairedTTestAnalysis } from './PairedTTestAnalysis';
+import { WelchTTestAnalysis } from './WelchTTestAnalysis';
 import { formatDate } from '../../utils/dateTime';
 import type { AnalysisRow } from '../../services/analysisService';
 import type { ScoreMode, ScoreModeMeta } from '../../utils/scoreMode';
-import type { DescriptiveStats, PairedTTestResult, PearsonResult } from '../../types';
+import type { DescriptiveStats, PearsonResult, WelchTTestResult } from '../../types';
 
 /** Plain-language one-line conclusion for each test, used in the summary of findings. */
-function findings(pearson: PearsonResult[], paired: PairedTTestResult): string[] {
+function findings(pearson: PearsonResult[], welch: WelchTTestResult): string[] {
   const lines = pearson.map((r) => r.interpretation);
-  lines.push(paired.interpretation);
+  lines.push(welch.interpretation);
   return lines;
 }
 
 /**
  * Printable research report. It brings together the OVERALL results of the
  * current filter selection — descriptive statistics, Pearson correlation and
- * the paired-samples t-test — together with their figures, and is printed or
+ * Welch's t-test — together with their figures, and is printed or
  * saved as a PDF from the browser.
  */
 export function AnalysisReport({
   rows,
   descriptiveStats,
   pearsonResults,
-  pairedResult,
+  welchResult,
   mode,
   meta,
   filterSummary,
@@ -34,14 +34,14 @@ export function AnalysisReport({
   rows: AnalysisRow[];
   descriptiveStats: DescriptiveStats[];
   pearsonResults: PearsonResult[];
-  pairedResult: PairedTTestResult;
+  welchResult: WelchTTestResult;
   mode: ScoreMode;
   meta: ScoreModeMeta;
   filterSummary: string;
 }) {
   const experimental = rows.filter((r) => r.assessment.group_type === 'Experimental').length;
   const comparison = rows.filter((r) => r.assessment.group_type === 'Comparison').length;
-  const conclusions = findings(pearsonResults, pairedResult);
+  const conclusions = findings(pearsonResults, welchResult);
 
   return (
     <div>
@@ -85,9 +85,6 @@ export function AnalysisReport({
             <span>
               <Badge tone="neutral">Comparison</Badge> <span className="font-semibold text-primary">{comparison}</span>
             </span>
-            <span>
-              Matched pairs: <span className="font-semibold text-primary">{pairedResult.nPairs}</span>
-            </span>
           </div>
         </section>
 
@@ -111,8 +108,8 @@ export function AnalysisReport({
         </section>
 
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-primary">5. Paired Samples T-Test</h3>
-          <PairedTTestAnalysis result={pairedResult} meta={meta} />
+          <h3 className="mb-2 text-sm font-semibold text-primary">5. Welch&apos;s T-Test</h3>
+          <WelchTTestAnalysis result={welchResult} meta={meta} />
         </section>
 
         <footer className="border-t border-border pt-3 text-[11px] text-slate-400">

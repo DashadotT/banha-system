@@ -57,8 +57,8 @@ export function ScoreModeSetting() {
       </div>
       <p className="mt-3 text-xs text-slate-500">
         Applies to the score column of the <strong>Assessments</strong> table and to the Descriptive Statistics,
-        Pearson Correlation, Paired T-Test and Report in <strong>Statistical Analysis</strong>. The choice is saved in
-        this browser.
+        Pearson Correlation, Welch&apos;s T-Test and Report in <strong>Statistical Analysis</strong>. The choice is saved
+        in this browser.
       </p>
     </Card>
   );

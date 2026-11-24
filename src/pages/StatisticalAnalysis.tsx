@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, LoadingState } from '../components/common/State
 import { Tabs } from '../components/common/Tabs';
 import { ExplainerButton } from '../components/common/ExplainerButton';
 import { PearsonAnalysis } from '../components/analysis/PearsonAnalysis';
-import { PairedTTestAnalysis } from '../components/analysis/PairedTTestAnalysis';
+import { WelchTTestAnalysis } from '../components/analysis/WelchTTestAnalysis';
 import { DescriptiveStatsTable } from '../components/analysis/DescriptiveStatsTable';
 import { ClassroomConditions } from '../components/analysis/ClassroomConditions';
 import { AnalysisReport } from '../components/analysis/AnalysisReport';
@@ -15,8 +15,8 @@ import { useAsync } from '../hooks/useAsync';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import {
   fetchAnalysisDataset,
-  runPairedTTest,
   runPearsonCorrelations,
+  runWelchTTest,
   scoredRows,
 } from '../services/analysisService';
 import { useScoreMode } from '../context/ScoreModeContext';
@@ -59,9 +59,9 @@ export default function StatisticalAnalysis() {
   );
 
   const pearsonResults = useMemo(() => (rows ? runPearsonCorrelations(rows, mode) : []), [rows, mode]);
-  // One overall result: every matched pair of the filtered dataset (all subjects pooled),
-  // or just the selected subject's pairs when a Subject filter is applied.
-  const pairedResult = useMemo(() => runPairedTTest(rows ?? [], mode, subject || undefined), [rows, mode, subject]);
+  // One overall result: all Experimental vs. Comparison assessments in the filtered dataset
+  // (all subjects pooled), or just the selected subject when a Subject filter is applied.
+  const welchResult = useMemo(() => runWelchTTest(rows ?? [], mode, subject || undefined), [rows, mode, subject]);
   const descriptiveStats = useMemo(() => {
     if (!rows) return [];
     return [
@@ -162,7 +162,7 @@ export default function StatisticalAnalysis() {
                 tabs={[
                   { id: 'descriptive', label: 'Descriptive Statistics', icon: <SquareStack size={15} /> },
                   { id: 'pearson', label: 'Pearson Correlation', icon: <Activity size={15} /> },
-                  { id: 'ttest', label: 'Paired T-Test', icon: <BarChart3 size={15} /> },
+                  { id: 'ttest', label: "Welch's T-Test", icon: <BarChart3 size={15} /> },
                   { id: 'classroom', label: 'Classroom Conditions', icon: <DoorOpen size={15} /> },
                   { id: 'report', label: 'Generate Report', icon: <FileText size={15} /> },
                 ]}
@@ -247,29 +247,29 @@ export default function StatisticalAnalysis() {
               {activeTab === 'ttest' && (
                 <div className="space-y-3">
                   <div className="flex justify-end">
-                    <ExplainerButton title="How the Paired Samples T-Test is calculated">
+                    <ExplainerButton title="How Welch's T-Test is calculated">
                       <p>
-                        Each Experimental assessment is matched with the Comparison assessment that has the
-                        same <strong>Subject, Assessment Type and Assessment Number</strong>. Every matched
-                        pair gives one difference: Experimental {meta.label} − Comparison {meta.label}. If a
-                        group has more than one assessment for the same match (for example two sections),
-                        their scores are averaged first so each pair counts once.
+                        All scored <strong>Experimental</strong> assessments and all scored{' '}
+                        <strong>Comparison</strong> assessments in the current filter selection are
+                        collected into two independent groups using their {meta.label}. Unlike a paired
+                        or Student&apos;s t-test, Welch&apos;s t-test does not require matched pairs,
+                        equal group sizes, or equal variances between groups.
                       </p>
                       <p>
-                        The test then asks whether the <strong>mean of those differences</strong> is
-                        different from zero: t = mean difference ÷ (SD of differences ÷ √n), with n − 1
-                        degrees of freedom, where n is the number of pairs. The p-value is compared with
-                        α = 0.05; if p &lt; 0.05 the null hypothesis (no difference between the groups) is
-                        rejected.
+                        The test compares the two group means: t = (mean₁ − mean₂) ÷ √(s₁²/n₁ + s₂²/n₂),
+                        using the Welch–Satterthwaite approximation for degrees of freedom. The p-value
+                        is compared with α = 0.05; if p &lt; 0.05 the null hypothesis (equal group means)
+                        is rejected.
                       </p>
                       <p>
-                        With <strong>All subjects</strong> selected, the pairs of every subject are combined
-                        into one overall result. Choose a Subject in the filters to see that subject on its
-                        own. Assessments without a partner in the other group are left out.
+                        With <strong>All subjects</strong> selected, assessments across every subject are
+                        combined into one overall result. Choose a Subject in the filters to see that
+                        subject on its own. Both groups need at least 2 scored assessments to compute the
+                        test.
                       </p>
                     </ExplainerButton>
                   </div>
-                  <PairedTTestAnalysis result={pairedResult} meta={meta} />
+                  <WelchTTestAnalysis result={welchResult} meta={meta} />
                 </div>
               )}
 
@@ -301,9 +301,8 @@ export default function StatisticalAnalysis() {
                     <ExplainerButton title="About this report">
                       <p>
                         The report gathers the <strong>overall results</strong> for the current filters —
-                        descriptive statistics, the Pearson correlation (with scatter plots) and the paired
-                        samples t-test (with its charts) — in one document that is ready to print or save as a
-                        PDF.
+                        descriptive statistics, the Pearson correlation (with scatter plots) and Welch&apos;s
+                        t-test (with its charts) — in one document that is ready to print or save as a PDF.
                       </p>
                       <p>
                         It uses the {meta.label} setting from System Settings, so the figures match what you
@@ -315,7 +314,7 @@ export default function StatisticalAnalysis() {
                     rows={rows}
                     descriptiveStats={descriptiveStats}
                     pearsonResults={pearsonResults}
-                    pairedResult={pairedResult}
+                    welchResult={welchResult}
                     mode={mode}
                     meta={meta}
                     filterSummary={filterSummary}

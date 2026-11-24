@@ -92,7 +92,7 @@ src/
 │   ├── charts/         Recharts trend chart
 │   ├── recordings/     Recording status badge
 │   ├── assessments/    Assessment entry form
-│   ├── analysis/       Pearson & paired t-test analysis, charts, printable report
+│   ├── analysis/       Pearson & Welch's t-test analysis, charts, printable report
 │   ├── settings/        Configurable option-list manager (Subjects/Sections/Types)
 │   ├── auth/            ProtectedRoute
 │   └── common/          Button, Card, Badge, Modal, Table, FormField, Tabs, States
@@ -115,11 +115,11 @@ src/
 - **Activity Log** on the Dashboard shows a running feed of research-data actions — recording start/stop, archive/restore/delete, assessment changes, settings changes, account renames — populated automatically by database triggers (`supabase/02_activity_log.sql`), so it captures actions from Node 2 as well as the web app. Page navigation is never logged.
 - **12-hour time format everywhere**, via the shared utilities in `src/utils/dateTime.ts`.
 - **Live Monitoring** is wired for Supabase Realtime — it subscribes to `INSERT` events on `environmental_readings` and status changes on `recordings`, so a device sending `START` / `DATA` / `STOP` packets updates the UI without a page refresh. The Dashboard also falls back to showing the previous recording's last known values (clearly labeled) while a new recording is waiting for its first packet, rather than going blank.
-- **Statistics are computed, not hardcoded.** `src/utils/statistics.ts` implements Pearson's r (with a Student's t-distribution p-value via the incomplete beta function) and a paired-samples t-test (t, df, p, 95% CI and Cohen's dz), both driven entirely by the filtered, non-archived dataset.
+- **Statistics are computed, not hardcoded.** `src/utils/statistics.ts` implements Pearson's r (with a Student's t-distribution p-value via the incomplete beta function) and Welch's independent-samples t-test (t, Welch–Satterthwaite df, p, 95% CI and Cohen's d), both driven entirely by the filtered, non-archived dataset.
 - **No mock data.** Every page fetches from Supabase through the `services/` layer; pages show loading, error, and empty states while data is unavailable.
 - **Subjects, Sections, and Assessment Types are configurable**, not hardcoded. They live in the `settings_options` table and are managed from the **System Settings** page — with inline rename and **archive-only removal** (never a hard delete), so historical assessments that reference a value are never orphaned. Archived options can be restored at any time.
 - **One assessment per recording**, editable after the fact. Adding assessment details is guarded against duplicate/rapid-click submissions, and an **Edit** button on Recording Details lets researchers correct details later without creating a second record.
-- **Statistical Analysis** has Descriptive Statistics, Pearson Correlation (coefficient chart plus a scatter plot with trend line for Temperature and Noise), a Paired T-Test (summary plus mean, per-pair and difference charts), Classroom Conditions, and Generate Report. The paired t-test matches each Experimental assessment with the Comparison assessment of the same Subject, Assessment Type and Assessment Number; with **All subjects** selected, all pairs are pooled into one overall result. **Generate Report** prints (or saves as PDF) the overall results and their figures — there are no CSV exports in the report.
+- **Statistical Analysis** has Descriptive Statistics, Pearson Correlation (coefficient chart plus a scatter plot with trend line for Temperature and Noise), Welch's T-Test (summary plus group means and individual assessment score charts), Classroom Conditions, and Generate Report. Welch's t-test compares all scored Experimental and Comparison assessments without requiring matched pairs or equal variances; with **All subjects** selected, all assessments are pooled into one overall result. **Generate Report** prints (or saves as PDF) the overall results and their figures — there are no CSV exports in the report.
 - **Score Percentage or Average Score.** System Settings lets you choose which score the Assessments table and every Statistical Analysis calculation, chart and report uses. The choice is stored in the browser (`localStorage`, key `banha:score-mode`), so it needs no database migration and applies per browser/device.
 
 ## Notes for Going Live
