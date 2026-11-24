@@ -59,8 +59,7 @@ export interface ThresholdRow {
   level: EnvLevel;
   label: EnvironmentalStatus;
   range: string;
-  /** Short reminder of the whole-number rule, shown under the range. */
-  example: string;
+  example?: string;
 }
 
 export interface ThresholdGroup {
@@ -75,18 +74,18 @@ export const ENV_THRESHOLD_TABLE: Record<'temperature' | 'noise', ThresholdGroup
     title: 'Temperature Range',
     unit: '°C',
     rows: [
-      { level: 'good', label: 'Optimal', range: '24°C – 26°C', example: '26.9°C is still Optimal' },
-      { level: 'fair', label: 'Neutral', range: '27°C – 30°C', example: '30.9°C is still Neutral' },
-      { level: 'poor', label: 'Poor', range: 'Below 24°C or above 30°C', example: '' },
+      { level: 'good', label: 'Optimal', range: '24°C – 26°C' },
+      { level: 'fair', label: 'Neutral', range: '27°C – 30°C' },
+      { level: 'poor', label: 'Poor', range: 'Below 24°C or above 30°C' },
     ],
   },
   noise: {
     title: 'Acoustic Noise Level',
     unit: 'dBA',
     rows: [
-      { level: 'good', label: 'Normal', range: '≤ 55 dBA', example: '55.9 dBA is still Normal' },
-      { level: 'fair', label: 'Moderate', range: '56 – 65 dBA', example: '65.9 dBA is still Moderate' },
-      { level: 'poor', label: 'High', range: '> 65 dBA', example: '' },
+      { level: 'good', label: 'Normal', range: '≤ 55 dBA' },
+      { level: 'fair', label: 'Moderate', range: '56 – 65 dBA' },
+      { level: 'poor', label: 'High', range: '> 65 dBA' },
     ],
   },
 };

@@ -17,7 +17,6 @@ export function EnvironmentalThresholdTables({ columns = false }: { columns?: bo
                   </td>
                   <td className="py-2 align-top">
                     <span className="font-medium text-primary">{row.range}</span>
-                    {row.example && <span className="mt-0.5 block text-[11px] text-slate-400">{row.example}</span>}
                   </td>
                 </tr>
               ))}
