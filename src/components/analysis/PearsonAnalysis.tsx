@@ -37,7 +37,7 @@ function CoefficientChart({ results }: { results: PearsonResult[] }) {
   const data = results.map((r) => ({ name: r.variableX, r: r.r, significant: r.significant }));
   return (
     <ResponsiveContainer width="100%" height={150}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, left: 8, bottom: 4 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 68, left: 8, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#E2E6EC" horizontal={false} />
         <XAxis
           type="number"
@@ -83,7 +83,7 @@ function CoefficientChart({ results }: { results: PearsonResult[] }) {
                   fontWeight={600}
                   className="mono-num"
                 >
-                  {String(d.r)}
+                  {`r: ${d.r}`}
                 </text>
               );
             }}
