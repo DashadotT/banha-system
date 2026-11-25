@@ -3,6 +3,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -36,7 +37,7 @@ function CoefficientChart({ results }: { results: PearsonResult[] }) {
   const data = results.map((r) => ({ name: r.variableX, r: r.r, significant: r.significant }));
   return (
     <ResponsiveContainer width="100%" height={150}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, left: 8, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#E2E6EC" horizontal={false} />
         <XAxis
           type="number"
@@ -57,6 +58,36 @@ function CoefficientChart({ results }: { results: PearsonResult[] }) {
           {data.map((d) => (
             <Cell key={d.name} fill={d.significant ? '#DEAE20' : '#B9CBE5'} />
           ))}
+          <LabelList
+            dataKey="r"
+            content={({ x, y, width, height, index }) => {
+              if (index == null || x == null || y == null || width == null || height == null) return null;
+              const d = data[index];
+              if (!d) return null;
+              const barX = Number(x);
+              const barY = Number(y);
+              const barW = Number(width);
+              const barH = Number(height);
+              const tipX = barX + barW;
+              const insideNegative = d.r <= -0.75 && Math.abs(barW) >= 56;
+              const textX = d.r >= 0 ? tipX + 8 : insideNegative ? tipX + 8 : tipX - 8;
+              const textAnchor = d.r >= 0 || insideNegative ? 'start' : 'end';
+              return (
+                <text
+                  x={textX}
+                  y={barY + barH / 2}
+                  dy="0.35em"
+                  textAnchor={textAnchor}
+                  fill="#002858"
+                  fontSize={12}
+                  fontWeight={600}
+                  className="mono-num"
+                >
+                  {String(d.r)}
+                </text>
+              );
+            }}
+          />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
