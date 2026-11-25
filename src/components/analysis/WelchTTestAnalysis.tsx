@@ -288,9 +288,47 @@ function buildAssessmentCategories(result: WelchTTestResult): AssessmentCategory
   }));
 }
 
+/** Renders a compact score value centered above each non-null bar. */
+function renderScoreLabel(unitSuffix: string) {
+  return ({
+    x,
+    y,
+    width,
+    value,
+  }: {
+    x?: string | number;
+    y?: string | number;
+    width?: string | number;
+    value?: unknown;
+  }) => {
+    if ((typeof value !== 'number' && typeof value !== 'string') || value === '') return null;
+    if (x == null || y == null || width == null) return null;
+    const barX = Number(x);
+    const barY = Number(y);
+    const barW = Number(width);
+    if (!Number.isFinite(barX) || !Number.isFinite(barY) || !Number.isFinite(barW)) return null;
+    return (
+      <text
+        x={barX + barW / 2}
+        y={Math.max(12, barY - 6)}
+        textAnchor="middle"
+        fill="#002858"
+        fontSize={11}
+        fontWeight={600}
+        className="mono-num"
+      >
+        {value}
+        {unitSuffix}
+      </text>
+    );
+  };
+}
+
 /** Grouped bar chart pairing Experimental vs. Comparison scores per assessment. */
 function GroupScoresChart({ result, meta }: { result: WelchTTestResult; meta: ScoreModeMeta }) {
   const u = formatUnit(meta);
+  const labelUnit = meta.unit === '%' ? '%' : '';
+  const scoreLabel = renderScoreLabel(labelUnit);
   const categories = buildAssessmentCategories(result);
 
   const maxScore = Math.max(
@@ -310,7 +348,7 @@ function GroupScoresChart({ result, meta }: { result: WelchTTestResult; meta: Sc
           <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
             <BarChart
               data={categories}
-              margin={{ top: 16, right: 16, left: 10, bottom: 8 }}
+              margin={{ top: 28, right: 16, left: 10, bottom: 8 }}
               barGap={6}
               barCategoryGap="24%"
             >
@@ -407,7 +445,9 @@ function GroupScoresChart({ result, meta }: { result: WelchTTestResult; meta: Sc
                   radius={[4, 4, 0, 0]}
                   maxBarSize={36}
                   isAnimationActive={false}
-                />
+                >
+                  <LabelList dataKey="experimental" content={scoreLabel} />
+                </Bar>
               )}
               {result.nComparison > 0 && (
                 <Bar
@@ -417,7 +457,9 @@ function GroupScoresChart({ result, meta }: { result: WelchTTestResult; meta: Sc
                   radius={[4, 4, 0, 0]}
                   maxBarSize={36}
                   isAnimationActive={false}
-                />
+                >
+                  <LabelList dataKey="comparison" content={scoreLabel} />
+                </Bar>
               )}
             </BarChart>
           </ResponsiveContainer>
